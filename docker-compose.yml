@@ -1,0 +1,21 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-3001}:3001"
+    environment:
+      - NODE_ENV=production
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - ALLOWED_ORIGIN=${ALLOWED_ORIGIN}
+      - PORT=3001
+    volumes:
+      - uploads:/app/server/uploads
+      - logs:/app/server/logs
+      - db:/app/server
+    restart: unless-stopped
+
+volumes:
+  uploads:
+  logs:
+  db:
