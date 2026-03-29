@@ -17,15 +17,12 @@ export default function BannerList({ banners }) {
             {banner.image_url ? (
               <img
                 src={banner.image_url}
-                alt={banner.shop_name}
+                alt=""
                 className="banner-image"
                 loading="lazy"
+                onError={e => { e.target.style.display = 'none' }}
               />
-            ) : (
-              <div className="banner-placeholder">
-                <span>{banner.shop_name}</span>
-              </div>
-            )}
+            ) : null}
           </div>
         </a>
       ))}
