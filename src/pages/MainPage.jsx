@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import Sidebar from '../components/Sidebar'
 import BannerList from '../components/BannerList'
 import InfoPanel from '../components/InfoPanel'
 import TopNav from '../components/TopNav'
 import { getBanners, getIdols, getRecentBanners } from '../api'
+import { UserContext } from '../App'
 
 export default function MainPage({ categories }) {
+  const { user, setUser } = useContext(UserContext)
   const [idols, setIdols] = useState([])
   const [banners, setBanners] = useState([])
   const [recentBanners, setRecentBanners] = useState([])
@@ -39,6 +41,8 @@ export default function MainPage({ categories }) {
         categories={categories}
         selected={selectedCategory}
         onSelect={setSelectedCategory}
+        user={user}
+        onUserChange={setUser}
       />
       <div className="content">
         <Sidebar

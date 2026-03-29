@@ -1,4 +1,7 @@
-import React, { Component, useState, useEffect, lazy, Suspense } from 'react'
+import React, { Component, useState, useEffect, lazy, Suspense, createContext } from 'react'
+import { getUserInfo } from './api'
+
+export const UserContext = createContext(null)
 
 const MainPage = lazy(() => import('./pages/MainPage'))
 const AdminPage = lazy(() => import('./pages/AdminPage'))
@@ -61,6 +64,7 @@ function PageRouter({ page }) {
 
 export default function App() {
   const [page, setPage] = useState('main')
+  const [user, setUser] = useState(getUserInfo())
 
   useEffect(() => {
     const update = () => {
@@ -85,9 +89,11 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <Suspense fallback={<div className="loading" role="status" aria-label="로딩 중">로딩 중...</div>}>
-        <PageRouter page={page} />
-      </Suspense>
+      <UserContext.Provider value={{ user, setUser }}>
+        <Suspense fallback={<div className="loading" role="status" aria-label="로딩 중">로딩 중...</div>}>
+          <PageRouter page={page} />
+        </Suspense>
+      </UserContext.Provider>
     </ErrorBoundary>
   )
 }

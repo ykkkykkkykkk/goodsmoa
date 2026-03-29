@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import { getIdols, getTrades, createTrade, updateTrade, updateTradeStatus, deleteTrade, reportTrade, signup, login, getUserToken, setUserToken, clearUserToken, getUserInfo, setUserInfo } from '../api'
+import { UserContext } from '../App'
 
 export default function TradePage() {
   const [idols, setIdols] = useState([])
@@ -38,7 +39,7 @@ export default function TradePage() {
   const [visibleContacts, setVisibleContacts] = useState({})
 
   // 로그인/회원가입
-  const [user, setUser] = useState(getUserInfo())
+  const { user, setUser } = useContext(UserContext)
   const [authModal, setAuthModal] = useState({ show: false, mode: 'login' })
   const [authForm, setAuthForm] = useState({ username: '', password: '', nickname: '' })
   const [authMsg, setAuthMsg] = useState('')
