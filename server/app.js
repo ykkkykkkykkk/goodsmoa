@@ -87,6 +87,20 @@ app.use('/api/idols', require('./routes/idols'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/trades', require('./routes/trades'));
 
+// 페이지뷰 기록
+app.post('/api/pageview', async (req, res) => {
+  try {
+    const { getDB } = require('./db');
+    const db = getDB();
+    const page = req.body.page || 'main';
+    const ip = req.ip || req.headers['x-forwarded-for'] || '';
+    await db.run('INSERT INTO page_views (page, ip) VALUES (?, ?)', [page, ip]);
+    res.json({ ok: true });
+  } catch {
+    res.json({ ok: false });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, message: '굿즈모아 서버 정상 동작 중' });

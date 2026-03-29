@@ -112,6 +112,13 @@ async function initDB() {
       nickname TEXT NOT NULL UNIQUE,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS page_views (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      page TEXT NOT NULL DEFAULT 'main',
+      ip TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // 인덱스 생성
@@ -125,6 +132,8 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_trade_reports_status ON trade_reports(status);
     CREATE INDEX IF NOT EXISTS idx_trade_reports_trade ON trade_reports(trade_id);
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+    CREATE INDEX IF NOT EXISTS idx_page_views_created ON page_views(created_at);
+    CREATE INDEX IF NOT EXISTS idx_page_views_page ON page_views(page);
   `);
 
   // trades 테이블에 user_id, nickname 컬럼 추가 (기존 데이터 호환)

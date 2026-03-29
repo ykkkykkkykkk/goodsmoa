@@ -622,6 +622,9 @@ input, select, textarea { font: inherit; }
 .stat-sold .stat-number { color: #1a7a3a; }
 .stat-pending .stat-number { color: #e65100; }
 .stat-warning .stat-number { color: #c53030; }
+.stat-highlight { background: linear-gradient(135deg, var(--primary), #9b59b6); }
+.stat-highlight .stat-number { color: white; font-size: 2rem; }
+.stat-highlight .stat-label { color: rgba(255,255,255,0.85); }
 
 /* ===== Image Preview ===== */
 .image-preview {

@@ -199,7 +199,7 @@ router.post('/reports/:id/reject', authAdmin, async (req, res) => {
 router.get('/stats', authAdmin, async (req, res) => {
   try {
     const db = getDB();
-    const [bannerCount, tradeCount, tradeSelling, tradeSold, reportPending, tradeReportPending, idolStats] = await Promise.all([
+    const [bannerCount, tradeCount, tradeSelling, tradeSold, reportPending, tradeReportPending, idolStats, userCount, viewsToday, viewsTotal, uniqueToday, viewsByPage] = await Promise.all([
       db.get('SELECT COUNT(*) as cnt FROM banners'),
       db.get('SELECT COUNT(*) as cnt FROM trades'),
       db.get("SELECT COUNT(*) as cnt FROM trades WHERE status = 'selling'"),
@@ -207,6 +207,11 @@ router.get('/stats', authAdmin, async (req, res) => {
       db.get("SELECT COUNT(*) as cnt FROM reports WHERE status = 'pending'"),
       db.get("SELECT COUNT(*) as cnt FROM trade_reports WHERE status = 'pending'"),
       db.all("SELECT idol, COUNT(*) as cnt FROM trades GROUP BY idol ORDER BY cnt DESC LIMIT 10"),
+      db.get('SELECT COUNT(*) as cnt FROM users'),
+      db.get("SELECT COUNT(*) as cnt FROM page_views WHERE created_at >= date('now')"),
+      db.get('SELECT COUNT(*) as cnt FROM page_views'),
+      db.get("SELECT COUNT(DISTINCT ip) as cnt FROM page_views WHERE created_at >= date('now')"),
+      db.all("SELECT page, COUNT(*) as cnt FROM page_views WHERE created_at >= date('now') GROUP BY page ORDER BY cnt DESC"),
     ]);
     res.json({
       ok: true,
@@ -216,6 +221,13 @@ router.get('/stats', authAdmin, async (req, res) => {
         pendingReports: reportPending.cnt,
         pendingTradeReports: tradeReportPending.cnt,
         topIdols: idolStats,
+        users: userCount.cnt,
+        views: {
+          today: viewsToday.cnt,
+          total: viewsTotal.cnt,
+          uniqueToday: uniqueToday.cnt,
+          byPage: viewsByPage,
+        },
       },
     });
   } catch (err) {

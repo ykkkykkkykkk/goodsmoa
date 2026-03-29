@@ -1,5 +1,5 @@
 import React, { Component, useState, useEffect, lazy, Suspense, createContext } from 'react'
-import { getUserInfo } from './api'
+import { getUserInfo, trackPageView } from './api'
 
 export const UserContext = createContext(null)
 
@@ -76,7 +76,7 @@ export default function App() {
     return () => window.removeEventListener('hashchange', update)
   }, [])
 
-  // 페이지별 title 설정
+  // 페이지별 title 설정 + 페이지뷰 기록
   useEffect(() => {
     const titles = {
       main: '굿즈모아 - 아이돌 굿즈 쇼핑몰 모음',
@@ -85,6 +85,7 @@ export default function App() {
       trade: '굿즈모아 - 중고거래',
     }
     document.title = titles[page] || '굿즈모아'
+    trackPageView(page)
   }, [page])
 
   return (

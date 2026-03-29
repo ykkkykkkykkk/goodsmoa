@@ -73,6 +73,15 @@ export async function getMe() {
   return res.json()
 }
 
+// 페이지뷰 기록
+export function trackPageView(page) {
+  fetch(`${BASE}/pageview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ page }),
+  }).catch(() => {})
+}
+
 // 배너
 export async function getBanners(idol, category) {
   const params = new URLSearchParams()

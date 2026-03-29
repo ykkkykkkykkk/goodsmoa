@@ -283,10 +283,28 @@ function StatsPanel() {
 
   if (!stats) return <div>로딩 중...</div>
 
+  const PAGE_LABELS = { main: '메인', trade: '중고거래', report: '제보', admin: '관리자' }
+
   return (
     <div>
       <h3>대시보드</h3>
       <div className="stats-grid">
+        <div className="stat-card stat-highlight">
+          <div className="stat-number">{stats.views?.today || 0}</div>
+          <div className="stat-label">오늘 방문</div>
+        </div>
+        <div className="stat-card stat-highlight">
+          <div className="stat-number">{stats.views?.uniqueToday || 0}</div>
+          <div className="stat-label">오늘 순방문자</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-number">{stats.views?.total || 0}</div>
+          <div className="stat-label">누적 방문</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-number">{stats.users || 0}</div>
+          <div className="stat-label">가입 회원</div>
+        </div>
         <div className="stat-card">
           <div className="stat-number">{stats.banners}</div>
           <div className="stat-label">등록 배너</div>
@@ -312,6 +330,25 @@ function StatsPanel() {
           <div className="stat-label">대기중 신고</div>
         </div>
       </div>
+
+      {stats.views?.byPage?.length > 0 && (
+        <>
+          <h3>오늘 페이지별 방문</h3>
+          <table className="admin-table">
+            <thead>
+              <tr><th>페이지</th><th>방문수</th></tr>
+            </thead>
+            <tbody>
+              {stats.views.byPage.map(p => (
+                <tr key={p.page}>
+                  <td>{PAGE_LABELS[p.page] || p.page}</td>
+                  <td>{p.cnt}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       <h3>인기 아이돌 (거래 기준)</h3>
       <table className="admin-table">
