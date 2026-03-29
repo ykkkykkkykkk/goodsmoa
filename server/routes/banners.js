@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
     const params = [];
 
     if (idol) {
-      sql += ' AND idol = ?';
+      sql += " AND (idol = ? OR idol = '전체 아이돌')";
       params.push(idol);
     }
     if (category && category !== '전체') {

@@ -165,6 +165,7 @@ function BannerManager() {
           onChange={e => setForm({ ...form, url: e.target.value })} required />
         <select value={form.idol} onChange={e => setForm({ ...form, idol: e.target.value })} required>
           <option value="">아이돌 선택</option>
+          <option value="전체 아이돌">전체 아이돌 (모든 아이돌에 표시)</option>
           {idols.map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
         </select>
         <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
