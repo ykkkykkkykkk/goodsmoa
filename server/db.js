@@ -8,8 +8,8 @@ async function initDB() {
   if (isTurso) {
     const { createClient } = require('@libsql/client');
     const client = createClient({
-      url: process.env.TURSO_DATABASE_URL,
-      authToken: process.env.TURSO_AUTH_TOKEN,
+      url: process.env.TURSO_DATABASE_URL.trim(),
+      authToken: process.env.TURSO_AUTH_TOKEN.trim(),
     });
     db = {
       async run(sql, params = []) {
