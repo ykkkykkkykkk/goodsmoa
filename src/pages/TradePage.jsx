@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { getIdols, getTrades, createTrade, updateTrade, updateTradeStatus, deleteTrade, reportTrade } from '../api'
+import { getIdols, getTrades, createTrade, updateTrade, updateTradeStatus, deleteTrade, reportTrade, signup, login, getUserToken, setUserToken, clearUserToken, getUserInfo, setUserInfo } from '../api'
 
 export default function TradePage() {
   const [idols, setIdols] = useState([])
@@ -37,6 +37,13 @@ export default function TradePage() {
   // 연락처 공개 토글 (게시글별)
   const [visibleContacts, setVisibleContacts] = useState({})
 
+  // 로그인/회원가입
+  const [user, setUser] = useState(getUserInfo())
+  const [authModal, setAuthModal] = useState({ show: false, mode: 'login' })
+  const [authForm, setAuthForm] = useState({ username: '', password: '', nickname: '' })
+  const [authMsg, setAuthMsg] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
+
   useEffect(() => {
     getIdols().then(setIdols).catch(console.error)
   }, [])
@@ -55,13 +62,50 @@ export default function TradePage() {
     setSearchQuery(searchInput)
   }
 
+  // 로그인/회원가입 처리
+  const handleAuth = async (e) => {
+    e.preventDefault()
+    setAuthLoading(true)
+    setAuthMsg('')
+    try {
+      let res
+      if (authModal.mode === 'login') {
+        res = await login(authForm.username, authForm.password)
+      } else {
+        res = await signup(authForm.username, authForm.password, authForm.nickname)
+      }
+      if (res.ok) {
+        setUserToken(res.token)
+        setUserInfo(res.user)
+        setUser(res.user)
+        setAuthModal({ show: false, mode: 'login' })
+        setAuthForm({ username: '', password: '', nickname: '' })
+        setAuthMsg('')
+      } else {
+        setAuthMsg(res.message || '실패')
+      }
+    } catch (err) {
+      setAuthMsg('오류: ' + err.message)
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleLogout = () => {
+    clearUserToken()
+    setUser(null)
+  }
+
+  // 본인 글 여부 확인
+  const isMyTrade = (trade) => user && trade.user_id && user.id === trade.user_id
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.title || !form.idol || !form.price || !form.contact) {
       setMsg('제목, 아이돌, 가격, 연락처는 필수입니다.')
       return
     }
-    if (!editId && (!form.password || form.password.length < 4)) {
+    if (!user && !editId && (!form.password || form.password.length < 4)) {
       setMsg('비밀번호는 4자 이상 입력하세요.')
       return
     }
@@ -77,9 +121,9 @@ export default function TradePage() {
 
       let res
       if (editId) {
-        res = await updateTrade(editId, fd, editPw)
+        res = await updateTrade(editId, fd, editPw || '')
       } else {
-        fd.append('password', form.password)
+        if (!user) fd.append('password', form.password)
         res = await createTrade(fd)
       }
 
@@ -87,6 +131,7 @@ export default function TradePage() {
         setMsg(editId ? '수정되었습니다!' : '등록되었습니다!')
         setForm({ title: '', description: '', idol: '', price: '', contact: '', password: '' })
         setFile(null)
+        setPreview(null)
         setShowForm(false)
         setEditId(null)
         setEditPw('')
@@ -134,8 +179,33 @@ export default function TradePage() {
     }
   }
 
-  // 비밀번호 확인 후 동작
-  const requestPw = (action, id) => {
+  // 비밀번호 확인 후 동작 (비로그인 글용)
+  const requestAction = (action, id) => {
+    const trade = trades.find(t => t.id === id)
+    // 로그인 유저 본인 글이면 비밀번호 없이 바로 실행
+    if (isMyTrade(trade)) {
+      if (action === 'sold') {
+        updateTradeStatus(id, 'sold', '').then(res => { if (res.ok) loadTrades() })
+      } else if (action === 'delete') {
+        if (confirm('정말 삭제하시겠습니까?')) {
+          deleteTrade(id, '').then(res => { if (res.ok) loadTrades() })
+        }
+      } else if (action === 'edit') {
+        setEditPw('')
+        setEditId(id)
+        setForm({
+          title: trade.title,
+          description: trade.description || '',
+          idol: trade.idol,
+          price: String(trade.price),
+          contact: trade.contact,
+          password: '',
+        })
+        setShowForm(true)
+      }
+      return
+    }
+    // 비밀번호 모달
     setPwModal({ show: true, action, id })
     setPwInput('')
     setPwError('')
@@ -160,7 +230,6 @@ export default function TradePage() {
         setPwError(res.message || '비밀번호가 올바르지 않습니다')
       }
     } else if (action === 'edit') {
-      // 비밀번호 맞으면 수정 폼 열기
       const trade = trades.find(t => t.id === id)
       if (!trade) return
       setEditPw(pwInput)
@@ -194,6 +263,19 @@ export default function TradePage() {
         <div className="top-nav-inner">
           <a href="#main" className="logo">굿즈모아</a>
           <span className="page-title">중고거래</span>
+          <div className="auth-area">
+            {user ? (
+              <>
+                <span className="user-nickname">{user.nickname}</span>
+                <button className="auth-btn" onClick={handleLogout}>로그아웃</button>
+              </>
+            ) : (
+              <>
+                <button className="auth-btn" onClick={() => { setAuthModal({ show: true, mode: 'login' }); setAuthMsg('') }}>로그인</button>
+                <button className="auth-btn signup-btn" onClick={() => { setAuthModal({ show: true, mode: 'signup' }); setAuthMsg('') }}>회원가입</button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -225,6 +307,11 @@ export default function TradePage() {
             </form>
           </div>
           <button className="trade-write-btn" onClick={() => {
+            if (!user) {
+              setAuthModal({ show: true, mode: 'login' })
+              setAuthMsg('글쓰기는 로그인이 필요합니다')
+              return
+            }
             setShowForm(!showForm)
             if (showForm) { setEditId(null); setEditPw('') }
           }}>
@@ -250,7 +337,7 @@ export default function TradePage() {
             </div>
             <input placeholder="연락처 (트위터, 오픈채팅 등)" value={form.contact}
               onChange={e => setForm({ ...form, contact: e.target.value })} required />
-            {!editId && (
+            {!user && !editId && (
               <input type="password" placeholder="게시글 비밀번호 (수정/삭제 시 필요, 4자 이상)" value={form.password}
                 onChange={e => setForm({ ...form, password: e.target.value })} required minLength={4} />
             )}
@@ -295,6 +382,7 @@ export default function TradePage() {
                 {t.description && <p className="trade-desc">{t.description}</p>}
                 <div className="trade-meta">
                   <span className="tag tag-idol">{t.idol}</span>
+                  {t.nickname && <span className="trade-nickname">{t.nickname}</span>}
                   <span className="trade-time">{timeAgo(t.created_at)}</span>
                 </div>
                 <div className="trade-contact">
@@ -307,11 +395,11 @@ export default function TradePage() {
                   </button>
                 </div>
                 <div className="trade-actions">
-                  {t.status === 'selling' && (
+                  {t.status === 'selling' && (isMyTrade(t) || !t.user_id) && (
                     <>
-                      <button onClick={() => requestPw('edit', t.id)} className="edit-btn">수정</button>
-                      <button onClick={() => requestPw('sold', t.id)} className="sold-btn">판매완료</button>
-                      <button onClick={() => requestPw('delete', t.id)} className="del-btn">삭제</button>
+                      <button onClick={() => requestAction('edit', t.id)} className="edit-btn">수정</button>
+                      <button onClick={() => requestAction('sold', t.id)} className="sold-btn">판매완료</button>
+                      <button onClick={() => requestAction('delete', t.id)} className="del-btn">삭제</button>
                     </>
                   )}
                   <button onClick={() => { setReportModal({ show: true, id: t.id }); setReportReason(''); setReportDetail(''); setReportMsg('') }} className="report-btn-trade">신고</button>
@@ -330,6 +418,55 @@ export default function TradePage() {
           </div>
         )}
       </div>
+
+      {/* 로그인/회원가입 모달 */}
+      {authModal.show && (
+        <div className="modal-overlay" onClick={() => setAuthModal({ show: false, mode: 'login' })}>
+          <div className="modal auth-modal" onClick={e => e.stopPropagation()}>
+            <h3>{authModal.mode === 'login' ? '로그인' : '회원가입'}</h3>
+            <form onSubmit={handleAuth}>
+              <input
+                type="text"
+                placeholder="아이디 (영문/숫자, 3~20자)"
+                value={authForm.username}
+                onChange={e => setAuthForm({ ...authForm, username: e.target.value })}
+                autoFocus
+                required
+              />
+              <input
+                type="password"
+                placeholder="비밀번호 (4자 이상)"
+                value={authForm.password}
+                onChange={e => setAuthForm({ ...authForm, password: e.target.value })}
+                required
+              />
+              {authModal.mode === 'signup' && (
+                <input
+                  type="text"
+                  placeholder="닉네임 (2~10자)"
+                  value={authForm.nickname}
+                  onChange={e => setAuthForm({ ...authForm, nickname: e.target.value })}
+                  required
+                />
+              )}
+              {authMsg && <p className="err">{authMsg}</p>}
+              <div className="modal-actions">
+                <button type="submit" disabled={authLoading}>
+                  {authLoading ? '처리 중...' : (authModal.mode === 'login' ? '로그인' : '가입하기')}
+                </button>
+                <button type="button" onClick={() => setAuthModal({ show: false, mode: 'login' })}>취소</button>
+              </div>
+            </form>
+            <p className="auth-switch">
+              {authModal.mode === 'login' ? (
+                <>계정이 없으신가요? <button type="button" className="link-btn" onClick={() => { setAuthModal({ ...authModal, mode: 'signup' }); setAuthMsg('') }}>회원가입</button></>
+              ) : (
+                <>이미 계정이 있으신가요? <button type="button" className="link-btn" onClick={() => { setAuthModal({ ...authModal, mode: 'login' }); setAuthMsg('') }}>로그인</button></>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 비밀번호 확인 모달 */}
       {pwModal.show && (

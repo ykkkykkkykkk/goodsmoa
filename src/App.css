@@ -702,6 +702,44 @@ input, select, textarea { font: inherit; }
   color: var(--text2); font-weight: 600; font-size: 0.95rem;
 }
 
+/* ===== Auth Area ===== */
+.auth-area {
+  display: flex; align-items: center; gap: 8px; margin-left: auto;
+}
+.user-nickname {
+  font-weight: 600; color: var(--primary); font-size: 0.9rem;
+}
+.auth-btn {
+  padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border);
+  background: white; color: var(--text); font-size: 0.85rem; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+}
+.auth-btn:hover { background: var(--bg2); }
+.auth-btn.signup-btn {
+  background: var(--primary); color: white; border-color: var(--primary);
+}
+.auth-btn.signup-btn:hover { opacity: 0.9; }
+
+.auth-modal form {
+  display: flex; flex-direction: column; gap: 10px; margin-top: 12px;
+}
+.auth-modal input {
+  padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 0.95rem;
+}
+.auth-switch {
+  text-align: center; margin-top: 12px; font-size: 0.85rem; color: var(--text2);
+}
+.link-btn {
+  background: none; border: none; color: var(--primary); cursor: pointer;
+  font-size: 0.85rem; font-weight: 600; text-decoration: underline;
+}
+
+.trade-nickname {
+  font-size: 0.8rem; color: var(--primary); font-weight: 600;
+  background: var(--bg2); padding: 2px 8px; border-radius: 10px;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 1024px) {
   .content {

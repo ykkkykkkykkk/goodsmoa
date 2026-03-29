@@ -6,9 +6,52 @@ const crypto = require('crypto');
 
 const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? undefined : 'dev_only_secret');
 
-// JWT 토큰 생성
+// JWT 토큰 생성 (관리자)
 function signToken() {
   return jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '4h' });
+}
+
+// JWT 토큰 생성 (유저)
+function signUserToken(user) {
+  return jwt.sign({ role: 'user', id: user.id, nickname: user.nickname }, JWT_SECRET, { expiresIn: '7d' });
+}
+
+// 유저 인증 미들웨어 (선택적 - 로그인 안 해도 통과)
+function optionalAuth(req, res, next) {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    req.user = null;
+    return next();
+  }
+  try {
+    const payload = jwt.verify(header.slice(7), JWT_SECRET);
+    if (payload.role === 'user') {
+      req.user = { id: payload.id, nickname: payload.nickname };
+    } else {
+      req.user = null;
+    }
+  } catch {
+    req.user = null;
+  }
+  next();
+}
+
+// 유저 인증 미들웨어 (필수)
+function authUser(req, res, next) {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    return res.status(401).json({ ok: false, message: '로그인이 필요합니다' });
+  }
+  try {
+    const payload = jwt.verify(header.slice(7), JWT_SECRET);
+    if (payload.role !== 'user') {
+      return res.status(401).json({ ok: false, message: '유저 인증이 필요합니다' });
+    }
+    req.user = { id: payload.id, nickname: payload.nickname };
+    next();
+  } catch {
+    return res.status(401).json({ ok: false, message: '토큰이 만료되었거나 유효하지 않습니다' });
+  }
 }
 
 // JWT 토큰 검증 미들웨어
@@ -83,7 +126,10 @@ function sanitizeBody(req, res, next) {
 module.exports = {
   JWT_SECRET,
   signToken,
+  signUserToken,
   authAdmin,
+  authUser,
+  optionalAuth,
   loginLimiter,
   apiLimiter,
   imageFileFilter,

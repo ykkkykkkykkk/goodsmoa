@@ -7,7 +7,7 @@ const router = express.Router();
 const { getDB } = require('../db');
 const logger = require('../logger');
 const sharp = require('sharp');
-const { imageFileFilter, randomFilename } = require('../middleware');
+const { imageFileFilter, randomFilename, optionalAuth } = require('../middleware');
 
 const uploadDir = path.join(__dirname, '..', 'uploads');
 const thumbDir = path.join(uploadDir, 'thumbs');
@@ -42,7 +42,7 @@ router.get('/', async (req, res) => {
   try {
     const db = getDB();
     const { idol, status, q, page = 1, limit = 20 } = req.query;
-    let sql = 'SELECT id, title, description, idol, price, contact, image_url, thumbnail_url, status, created_at FROM trades WHERE 1=1';
+    let sql = 'SELECT id, title, description, idol, price, contact, image_url, thumbnail_url, status, user_id, nickname, created_at FROM trades WHERE 1=1';
     let countSql = 'SELECT COUNT(*) as total FROM trades WHERE 1=1';
     const params = [];
     const countParams = [];
@@ -93,23 +93,23 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 중고거래 등록 (비밀번호 필수)
-router.post('/', upload.single('image'), async (req, res) => {
+// 중고거래 등록 (로그인 유저: 비밀번호 불필요, 비로그인: 비밀번호 필수)
+router.post('/', optionalAuth, upload.single('image'), async (req, res) => {
   try {
     const db = getDB();
     const { title, description, idol, price, contact, password } = req.body;
 
-    if (!password || password.length < 4) {
+    if (!req.user && (!password || password.length < 4)) {
       return res.status(400).json({ ok: false, message: '비밀번호는 4자 이상 입력하세요' });
     }
 
-    const hashedPw = bcrypt.hashSync(password, 10);
+    const hashedPw = req.user ? '' : bcrypt.hashSync(password, 10);
     const image_url = req.file ? `/uploads/${req.file.filename}` : (req.body.image_url || '');
     const thumbnail_url = req.file ? await createThumbnail(req.file.filename) : '';
 
     await db.run(
-      'INSERT INTO trades (title, description, idol, price, contact, image_url, thumbnail_url, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [title, description || '', idol, parseInt(price) || 0, contact, image_url, thumbnail_url || '', hashedPw]
+      'INSERT INTO trades (title, description, idol, price, contact, image_url, thumbnail_url, password, user_id, nickname) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [title, description || '', idol, parseInt(price) || 0, contact, image_url, thumbnail_url || '', hashedPw, req.user ? req.user.id : null, req.user ? req.user.nickname : null]
     );
     res.json({ ok: true, message: '등록되었습니다' });
   } catch (err) {
@@ -118,14 +118,19 @@ router.post('/', upload.single('image'), async (req, res) => {
   }
 });
 
-// 비밀번호 확인 헬퍼
-async function verifyTradePassword(req, res) {
+// 비밀번호 확인 헬퍼 (로그인 유저 본인 글이면 비밀번호 불필요)
+async function verifyTradeOwner(req, res) {
   const db = getDB();
   const trade = await db.get('SELECT * FROM trades WHERE id = ?', [req.params.id]);
   if (!trade) {
     res.status(404).json({ ok: false, message: '게시글을 찾을 수 없습니다' });
     return null;
   }
+  // 로그인 유저이고, 본인 글이면 통과
+  if (req.user && trade.user_id && req.user.id === trade.user_id) {
+    return trade;
+  }
+  // 비밀번호 확인
   const password = req.body.password || req.headers['x-trade-password'] || '';
   if (!trade.password || !bcrypt.compareSync(password, trade.password)) {
     res.status(403).json({ ok: false, message: '비밀번호가 올바르지 않습니다' });
@@ -135,9 +140,9 @@ async function verifyTradePassword(req, res) {
 }
 
 // 중고거래 수정
-router.put('/:id', upload.single('image'), async (req, res) => {
+router.put('/:id', optionalAuth, upload.single('image'), async (req, res) => {
   try {
-    const trade = await verifyTradePassword(req, res);
+    const trade = await verifyTradeOwner(req, res);
     if (!trade) return;
 
     const db = getDB();
@@ -161,10 +166,10 @@ router.put('/:id', upload.single('image'), async (req, res) => {
   }
 });
 
-// 중고거래 상태 변경 (비밀번호 필요)
-router.patch('/:id/status', async (req, res) => {
+// 중고거래 상태 변경
+router.patch('/:id/status', optionalAuth, async (req, res) => {
   try {
-    const trade = await verifyTradePassword(req, res);
+    const trade = await verifyTradeOwner(req, res);
     if (!trade) return;
 
     const db = getDB();
@@ -177,10 +182,10 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
-// 중고거래 삭제 (비밀번호 필요)
-router.delete('/:id', async (req, res) => {
+// 중고거래 삭제
+router.delete('/:id', optionalAuth, async (req, res) => {
   try {
-    const trade = await verifyTradePassword(req, res);
+    const trade = await verifyTradeOwner(req, res);
     if (!trade) return;
 
     const db = getDB();

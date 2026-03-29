@@ -104,6 +104,14 @@ async function initDB() {
       status TEXT DEFAULT 'pending',
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      nickname TEXT NOT NULL UNIQUE,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // 인덱스 생성
@@ -116,7 +124,16 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
     CREATE INDEX IF NOT EXISTS idx_trade_reports_status ON trade_reports(status);
     CREATE INDEX IF NOT EXISTS idx_trade_reports_trade ON trade_reports(trade_id);
+    CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
   `);
+
+  // trades 테이블에 user_id, nickname 컬럼 추가 (기존 데이터 호환)
+  try {
+    await db.run('ALTER TABLE trades ADD COLUMN user_id INTEGER DEFAULT NULL');
+  } catch {}
+  try {
+    await db.run('ALTER TABLE trades ADD COLUMN nickname TEXT DEFAULT NULL');
+  } catch {}
 
   // 기본 아이돌 데이터 삽입
   const count = await db.get('SELECT COUNT(*) as cnt FROM idols');

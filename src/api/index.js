@@ -7,7 +7,7 @@ async function fetchJSON(url, options = {}) {
   return data
 }
 
-// 토큰 관리
+// 관리자 토큰 관리
 export function getToken() {
   return sessionStorage.getItem('admin_token')
 }
@@ -20,6 +20,57 @@ export function clearToken() {
 function authHeaders() {
   const token = getToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+// 유저 토큰 관리
+export function getUserToken() {
+  return localStorage.getItem('user_token')
+}
+export function setUserToken(token) {
+  localStorage.setItem('user_token', token)
+}
+export function clearUserToken() {
+  localStorage.removeItem('user_token')
+  localStorage.removeItem('user_info')
+}
+export function getUserInfo() {
+  const info = localStorage.getItem('user_info')
+  return info ? JSON.parse(info) : null
+}
+export function setUserInfo(user) {
+  localStorage.setItem('user_info', JSON.stringify(user))
+}
+function userAuthHeaders() {
+  const token = getUserToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+// 회원가입
+export async function signup(username, password, nickname) {
+  const res = await fetch(`${BASE}/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password, nickname }),
+  })
+  return res.json()
+}
+
+// 로그인
+export async function login(username, password) {
+  const res = await fetch(`${BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  })
+  return res.json()
+}
+
+// 내 정보
+export async function getMe() {
+  const res = await fetch(`${BASE}/auth/me`, {
+    headers: userAuthHeaders(),
+  })
+  return res.json()
 }
 
 // 배너
@@ -129,14 +180,16 @@ export async function getTrades(idol, status, q, page = 1, limit = 20) {
 export function createTrade(formData) {
   return fetch(`${BASE}/trades`, {
     method: 'POST',
+    headers: userAuthHeaders(),
     body: formData,
   }).then(r => r.json())
 }
 
 export function updateTrade(id, formData, password) {
-  formData.append('password', password)
+  if (password) formData.append('password', password)
   return fetch(`${BASE}/trades/${id}`, {
     method: 'PUT',
+    headers: userAuthHeaders(),
     body: formData,
   }).then(r => r.json())
 }
@@ -144,7 +197,7 @@ export function updateTrade(id, formData, password) {
 export function updateTradeStatus(id, status, password) {
   return fetch(`${BASE}/trades/${id}/status`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...userAuthHeaders() },
     body: JSON.stringify({ status, password }),
   }).then(r => r.json())
 }
@@ -152,7 +205,7 @@ export function updateTradeStatus(id, status, password) {
 export function deleteTrade(id, password) {
   return fetch(`${BASE}/trades/${id}`, {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...userAuthHeaders() },
     body: JSON.stringify({ password }),
   }).then(r => r.json())
 }

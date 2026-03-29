@@ -81,6 +81,7 @@ app.use((req, res, next) => {
 app.use('/api', apiLimiter);
 
 // Routes
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/banners', require('./routes/banners'));
 app.use('/api/idols', require('./routes/idols'));
 app.use('/api/admin', require('./routes/admin'));
