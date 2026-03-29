@@ -156,9 +156,9 @@ input, select, textarea { font: inherit; }
   box-shadow: 0 6px 24px rgba(0,0,0,0.1);
 }
 .banner-image-wrap {
-  width: 728px;
-  height: 90px;
-  max-width: 100%;
+  width: 100%;
+  max-width: 728px;
+  aspect-ratio: 728 / 90;
   background: #f0f0f3;
   overflow: hidden;
 }
