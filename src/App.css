@@ -156,8 +156,9 @@ input, select, textarea { font: inherit; }
   box-shadow: 0 6px 24px rgba(0,0,0,0.1);
 }
 .banner-image-wrap {
-  width: 100%;
-  aspect-ratio: 728 / 90;
+  width: 728px;
+  height: 90px;
+  max-width: 100%;
   background: #f0f0f3;
   overflow: hidden;
 }
@@ -172,14 +173,6 @@ input, select, textarea { font: inherit; }
   color: var(--text2);
   background: linear-gradient(135deg, #e8e8ed 0%, #f5f5f7 100%);
 }
-.banner-info {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px;
-}
-.banner-shop {
-  font-weight: 600; font-size: 0.95rem;
-}
-.banner-tags { display: flex; gap: 6px; }
 .tag {
   font-size: 0.75rem; padding: 3px 8px;
   border-radius: 6px; font-weight: 500;

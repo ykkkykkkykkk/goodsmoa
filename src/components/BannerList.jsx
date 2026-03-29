@@ -11,7 +11,7 @@ export default function BannerList({ banners }) {
           rel="noopener noreferrer"
           className="banner-card"
           role="listitem"
-          aria-label={`${banner.shop_name} - ${banner.idol} ${banner.category}`}
+          aria-label={banner.shop_name}
         >
           <div className="banner-image-wrap">
             {banner.image_url ? (
@@ -26,13 +26,6 @@ export default function BannerList({ banners }) {
                 <span>{banner.shop_name}</span>
               </div>
             )}
-          </div>
-          <div className="banner-info">
-            <span className="banner-shop">{banner.shop_name}</span>
-            <span className="banner-tags">
-              <span className="tag tag-idol">{banner.idol}</span>
-              <span className="tag tag-cat">{banner.category}</span>
-            </span>
           </div>
         </a>
       ))}
