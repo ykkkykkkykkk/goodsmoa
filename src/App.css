@@ -750,23 +750,105 @@ input, select, textarea { font: inherit; }
   .info-panel { display: none; }
 }
 @media (max-width: 768px) {
+  /* 헤더: 로고 + 로그인/회원가입 한 줄 */
+  .top-nav-inner {
+    flex-wrap: wrap;
+    gap: 0;
+    padding: 0 12px;
+    height: auto;
+  }
+  .top-nav-inner .logo {
+    font-size: 1.2rem;
+  }
+  .auth-area {
+    margin-left: auto;
+    gap: 4px;
+  }
+  .auth-btn {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+  }
+  .user-nickname {
+    font-size: 0.8rem;
+  }
+
+  /* 네비게이션: 가로 스크롤 한 줄 */
+  .nav-links {
+    width: 100%;
+    order: 3;
+    gap: 2px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 8px 0;
+    flex-shrink: 0;
+  }
+  .nav-links::-webkit-scrollbar { display: none; }
+  .nav-btn {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* 레이아웃 */
   .content {
     grid-template-columns: 1fr;
-    padding: 16px;
+    padding: 12px;
+    gap: 12px;
   }
+
+  /* 아이돌 필터: 가로 스크롤 */
   .sidebar {
     position: static;
-    display: flex; gap: 8px; align-items: center;
-    padding: 12px;
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    background: transparent;
+    box-shadow: none;
+    gap: 0;
   }
+  .sidebar::-webkit-scrollbar { display: none; }
   .sidebar h3 { display: none; }
   .idol-list {
-    display: flex; gap: 6px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: nowrap;
   }
   .idol-list li + li { margin-top: 0; }
-  .idol-btn { padding: 6px 12px; white-space: nowrap; font-size: 0.85rem; }
-  .nav-links { gap: 2px; }
-  .nav-btn { padding: 6px 10px; font-size: 0.85rem; }
-  .top-nav-inner { gap: 16px; padding: 0 16px; }
+  .idol-btn {
+    padding: 6px 12px;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+
+  /* 메인 헤더 */
+  .main-header {
+    margin-bottom: 12px;
+  }
+  .main-header h2 {
+    font-size: 1rem;
+  }
+
+  /* 배너: 꽉 차게, 짤림 없이 */
+  .banner-list {
+    gap: 10px;
+  }
+  .banner-card {
+    border-radius: 8px;
+  }
+  .banner-image-wrap {
+    max-height: none;
+    height: auto;
+  }
+  .banner-image {
+    width: 100%;
+    height: auto;
+    max-height: none;
+    object-fit: contain;
+  }
 }
