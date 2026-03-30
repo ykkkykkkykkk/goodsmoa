@@ -141,7 +141,9 @@ input, select, textarea { font: inherit; }
 
 /* ===== Banner List ===== */
 .banner-list {
-  display: flex; flex-direction: column; gap: 16px;
+  display: flex; flex-direction: column; gap: 12px;
+  width: 100%;
+  overflow: hidden;
 }
 .banner-card {
   display: block;
@@ -158,7 +160,7 @@ input, select, textarea { font: inherit; }
 }
 .banner-image-wrap {
   width: 100%;
-  height: 90px;
+  max-height: 90px;
   background: #f0f0f3;
   overflow: hidden;
   display: flex;
@@ -172,7 +174,9 @@ input, select, textarea { font: inherit; }
 }
 .banner-image {
   display: block;
-  width: 100%; height: 100%;
+  width: 100%;
+  height: auto;
+  max-height: 90px;
   object-fit: cover;
 }
 .tag {
