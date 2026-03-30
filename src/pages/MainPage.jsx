@@ -1,24 +1,21 @@
 import React, { useState, useEffect, useContext } from 'react'
 import Sidebar from '../components/Sidebar'
 import BannerList from '../components/BannerList'
-import InfoPanel from '../components/InfoPanel'
 import TopNav from '../components/TopNav'
-import { getBanners, getIdols, getRecentBanners } from '../api'
+import { getBanners, getIdols } from '../api'
 import { UserContext } from '../App'
 
 export default function MainPage({ categories }) {
   const { user, setUser } = useContext(UserContext)
   const [idols, setIdols] = useState([])
   const [banners, setBanners] = useState([])
-  const [recentBanners, setRecentBanners] = useState([])
   const [selectedIdol, setSelectedIdol] = useState(null)
   const [selectedCategory, setSelectedCategory] = useState('전체')
   const [selectedIdolInfo, setSelectedIdolInfo] = useState(null)
 
   useEffect(() => {
     getIdols().then(setIdols).catch(console.error)
-    getRecentBanners().then(setRecentBanners).catch(console.error)
-  }, [])
+}, [])
 
   useEffect(() => {
     getBanners(selectedIdol, selectedCategory)
@@ -63,7 +60,6 @@ export default function MainPage({ categories }) {
             <BannerList banners={banners} />
           )}
         </main>
-        <InfoPanel idol={selectedIdolInfo} recent={recentBanners} />
       </div>
     </div>
   )
