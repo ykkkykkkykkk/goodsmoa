@@ -1,38 +1,14 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const router = express.Router();
 const { getDB } = require('../db');
 const logger = require('../logger');
-const sharp = require('sharp');
-const { imageFileFilter, randomFilename, optionalAuth } = require('../middleware');
+const { imageFileFilter, optionalAuth } = require('../middleware');
+const { uploadWithThumbnail } = require('../cloudinary');
 
-const uploadDir = path.join(__dirname, '..', 'uploads');
-const thumbDir = path.join(uploadDir, 'thumbs');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-if (!fs.existsSync(thumbDir)) fs.mkdirSync(thumbDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => cb(null, randomFilename(file.originalname)),
-});
-
-// 썸네일 생성 (400px 리사이즈, webp)
-async function createThumbnail(filename) {
-  try {
-    const input = path.join(uploadDir, filename);
-    const thumbName = path.parse(filename).name + '_thumb.webp';
-    const output = path.join(thumbDir, thumbName);
-    await sharp(input).resize(400, 400, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 75 }).toFile(output);
-    return `/uploads/thumbs/${thumbName}`;
-  } catch {
-    return null;
-  }
-}
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: imageFileFilter,
 });
@@ -104,8 +80,13 @@ router.post('/', optionalAuth, upload.single('image'), async (req, res) => {
     }
 
     const hashedPw = req.user ? '' : bcrypt.hashSync(password, 10);
-    const image_url = req.file ? `/uploads/${req.file.filename}` : (req.body.image_url || '');
-    const thumbnail_url = req.file ? await createThumbnail(req.file.filename) : '';
+    let image_url = req.body.image_url || '';
+    let thumbnail_url = '';
+    if (req.file) {
+      const uploaded = await uploadWithThumbnail(req.file.buffer);
+      image_url = uploaded.imageUrl;
+      thumbnail_url = uploaded.thumbnailUrl;
+    }
 
     await db.run(
       'INSERT INTO trades (title, description, idol, price, contact, image_url, thumbnail_url, password, user_id, nickname) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -147,12 +128,13 @@ router.put('/:id', optionalAuth, upload.single('image'), async (req, res) => {
 
     const db = getDB();
     const { title, description, idol, price, contact } = req.body;
-    const image_url = req.file
-      ? `/uploads/${req.file.filename}`
-      : (req.body.image_url || trade.image_url);
-    const thumbnail_url = req.file
-      ? (await createThumbnail(req.file.filename) || '')
-      : (trade.thumbnail_url || '');
+    let image_url = req.body.image_url || trade.image_url;
+    let thumbnail_url = trade.thumbnail_url || '';
+    if (req.file) {
+      const uploaded = await uploadWithThumbnail(req.file.buffer);
+      image_url = uploaded.imageUrl;
+      thumbnail_url = uploaded.thumbnailUrl;
+    }
 
     await db.run(
       'UPDATE trades SET title=?, description=?, idol=?, price=?, contact=?, image_url=?, thumbnail_url=? WHERE id=?',

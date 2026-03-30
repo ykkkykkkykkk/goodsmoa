@@ -1,23 +1,15 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const router = express.Router();
 const { getDB } = require('../db');
 const logger = require('../logger');
-const { authAdmin, signToken, loginLimiter, imageFileFilter, randomFilename } = require('../middleware');
+const { authAdmin, signToken, loginLimiter, imageFileFilter } = require('../middleware');
+const { uploadToCloudinary } = require('../cloudinary');
 
-// 업로드 설정
-const uploadDir = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => cb(null, randomFilename(file.originalname)),
-});
+// 업로드 설정 (메모리 스토리지 → Cloudinary 업로드)
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: imageFileFilter,
 });
@@ -49,7 +41,10 @@ router.post('/banners', authAdmin, upload.single('image'), async (req, res) => {
   try {
     const db = getDB();
     const { shop_name, url, idol, category } = req.body;
-    const image_url = req.file ? `/uploads/${req.file.filename}` : (req.body.image_url || '');
+    let image_url = req.body.image_url || '';
+    if (req.file) {
+      image_url = await uploadToCloudinary(req.file.buffer, 'goodsmoa/banners');
+    }
 
     await db.run(
       'INSERT INTO banners (shop_name, url, image_url, idol, category) VALUES (?, ?, ?, ?, ?)',
@@ -69,9 +64,10 @@ router.put('/banners/:id', authAdmin, upload.single('image'), async (req, res) =
     const existing = await db.get('SELECT * FROM banners WHERE id = ?', [req.params.id]);
     if (!existing) return res.status(404).json({ ok: false, message: '배너를 찾을 수 없습니다' });
 
-    const image_url = req.file
-      ? `/uploads/${req.file.filename}`
-      : (req.body.image_url || existing.image_url);
+    let image_url = req.body.image_url || existing.image_url;
+    if (req.file) {
+      image_url = await uploadToCloudinary(req.file.buffer, 'goodsmoa/banners');
+    }
 
     await db.run(
       `UPDATE banners SET shop_name=?, url=?, image_url=?, idol=?, category=?, sort_order=? WHERE id=?`,
@@ -129,7 +125,10 @@ router.post('/report', upload.single('image'), async (req, res) => {
   try {
     const db = getDB();
     const { shop_name, url, idol, category } = req.body;
-    const image_url = req.file ? `/uploads/${req.file.filename}` : (req.body.image_url || '');
+    let image_url = req.body.image_url || '';
+    if (req.file) {
+      image_url = await uploadToCloudinary(req.file.buffer, 'goodsmoa/reports');
+    }
 
     await db.run(
       'INSERT INTO reports (shop_name, url, image_url, idol, category) VALUES (?, ?, ?, ?, ?)',
