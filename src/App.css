@@ -161,6 +161,14 @@ input, select, textarea { font: inherit; }
   height: 90px;
   background: #f0f0f3;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.banner-fallback-text {
+  font-size: 0.95rem;
+  color: var(--text2);
+  font-weight: 500;
 }
 .banner-image {
   display: block;

@@ -17,12 +17,17 @@ export default function BannerList({ banners }) {
             {banner.image_url ? (
               <img
                 src={banner.image_url}
-                alt=""
+                alt={banner.shop_name}
                 className="banner-image"
                 loading="lazy"
-                onError={e => { e.target.style.display = 'none' }}
+                onError={e => {
+                  e.target.style.display = 'none'
+                  const fallback = e.target.nextElementSibling
+                  if (fallback) fallback.style.display = ''
+                }}
               />
             ) : null}
+            <span className="banner-fallback-text" style={banner.image_url ? { display: 'none' } : {}}>{banner.shop_name}</span>
           </div>
         </a>
       ))}
