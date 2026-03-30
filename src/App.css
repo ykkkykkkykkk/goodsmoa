@@ -772,23 +772,23 @@ input, select, textarea { font: inherit; }
     font-size: 0.8rem;
   }
 
-  /* 네비게이션: 가로 스크롤 한 줄 */
+  /* 네비게이션: 한 줄에 전부 보이게 */
   .nav-links {
     width: 100%;
     order: 3;
-    gap: 2px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    gap: 0;
+    display: flex;
+    justify-content: space-between;
     padding: 8px 0;
     flex-shrink: 0;
+    overflow: visible;
   }
-  .nav-links::-webkit-scrollbar { display: none; }
   .nav-btn {
-    padding: 6px 12px;
-    font-size: 0.8rem;
+    padding: 6px 8px;
+    font-size: 0.75rem;
     white-space: nowrap;
-    flex-shrink: 0;
+    flex: 1;
+    text-align: center;
   }
 
   /* 레이아웃 */
