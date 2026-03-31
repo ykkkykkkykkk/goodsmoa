@@ -7,9 +7,10 @@ const MainPage = lazy(() => import('./pages/MainPage'))
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const ReportPage = lazy(() => import('./pages/ReportPage'))
 const TradePage = lazy(() => import('./pages/TradePage'))
+const PocaPage = lazy(() => import('./pages/PocaPage'))
 
 const CATEGORIES = ['전체', '팝업스토어', '공식샵', '온라인몰']
-const VALID_PAGES = ['main', 'admin', 'report', 'trade']
+const VALID_PAGES = ['main', 'admin', 'report', 'trade', 'poca']
 
 // Error Boundary
 class ErrorBoundary extends Component {
@@ -58,6 +59,7 @@ function PageRouter({ page }) {
   if (page === 'admin') return <AdminPage />
   if (page === 'report') return <ReportPage />
   if (page === 'trade') return <TradePage />
+  if (page === 'poca') return <PocaPage />
   if (page === 'main') return <MainPage categories={CATEGORIES} />
   return <NotFoundPage />
 }
@@ -83,6 +85,7 @@ export default function App() {
       admin: '굿즈모아 - 관리자',
       report: '굿즈모아 - 쇼핑몰 제보',
       trade: '굿즈모아 - 포카교환',
+      poca: '굿즈모아 - 포카도감',
     }
     document.title = titles[page] || '굿즈모아'
     trackPageView(page)

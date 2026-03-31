@@ -86,6 +86,7 @@ app.use('/api/banners', require('./routes/banners'));
 app.use('/api/idols', require('./routes/idols'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/trades', require('./routes/trades'));
+app.use('/api/poca', require('./routes/poca'));
 
 // 페이지뷰 기록
 app.post('/api/pageview', async (req, res) => {

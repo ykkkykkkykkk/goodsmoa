@@ -122,6 +122,43 @@ async function initDB() {
       ip TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS poca_posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS poca_cards (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      post_id INTEGER NOT NULL,
+      image_url TEXT NOT NULL,
+      thumbnail_url TEXT DEFAULT '',
+      artist TEXT NOT NULL DEFAULT '',
+      album TEXT NOT NULL DEFAULT '',
+      version TEXT NOT NULL DEFAULT '',
+      rarity INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS poca_comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      card_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      nickname TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'comment',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS poca_reactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      card_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // 인덱스 생성
@@ -138,6 +175,12 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
     CREATE INDEX IF NOT EXISTS idx_page_views_created ON page_views(created_at);
     CREATE INDEX IF NOT EXISTS idx_page_views_page ON page_views(page);
+    CREATE INDEX IF NOT EXISTS idx_poca_posts_user ON poca_posts(user_id);
+    CREATE INDEX IF NOT EXISTS idx_poca_cards_post ON poca_cards(post_id);
+    CREATE INDEX IF NOT EXISTS idx_poca_cards_artist ON poca_cards(artist);
+    CREATE INDEX IF NOT EXISTS idx_poca_comments_card ON poca_comments(card_id);
+    CREATE INDEX IF NOT EXISTS idx_poca_reactions_card ON poca_reactions(card_id);
+    CREATE INDEX IF NOT EXISTS idx_poca_reactions_user_card ON poca_reactions(user_id, card_id);
   `);
 
   // 기본 아이돌 데이터 삽입

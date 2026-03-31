@@ -248,6 +248,60 @@ export function reportTrade(id, reason, detail) {
   }).then(r => r.json())
 }
 
+// 포카 도감
+export async function getPocaCards(artist, album, rarity, q, page = 1, limit = 20) {
+  const params = new URLSearchParams()
+  if (artist) params.set('artist', artist)
+  if (album) params.set('album', album)
+  if (rarity) params.set('rarity', rarity)
+  if (q) params.set('q', q)
+  params.set('page', page)
+  params.set('limit', limit)
+  const res = await fetchJSON(`${BASE}/poca?${params}`)
+  return res
+}
+
+export function createPocaPost(formData) {
+  return fetch(`${BASE}/poca`, {
+    method: 'POST',
+    headers: userAuthHeaders(),
+    body: formData,
+  }).then(r => r.json())
+}
+
+export async function getPocaCardDetail(id) {
+  const res = await fetchJSON(`${BASE}/poca/cards/${id}`)
+  return res.data
+}
+
+export function addPocaComment(cardId, content, type) {
+  return fetch(`${BASE}/poca/cards/${cardId}/comments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...userAuthHeaders() },
+    body: JSON.stringify({ content, type }),
+  }).then(r => r.json())
+}
+
+export function togglePocaReaction(cardId, type) {
+  return fetch(`${BASE}/poca/cards/${cardId}/reactions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...userAuthHeaders() },
+    body: JSON.stringify({ type }),
+  }).then(r => r.json())
+}
+
+export async function getPocaProfile(userId) {
+  const res = await fetchJSON(`${BASE}/poca/profile/${userId}`)
+  return res.data
+}
+
+export function deletePocaCard(id) {
+  return fetch(`${BASE}/poca/cards/${id}`, {
+    method: 'DELETE',
+    headers: userAuthHeaders(),
+  }).then(r => r.json())
+}
+
 // 관리자: 통계
 export async function getStats() {
   const res = await fetch(`${BASE}/admin/stats`, { headers: authHeaders() })
