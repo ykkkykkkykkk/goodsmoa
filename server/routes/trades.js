@@ -13,13 +13,13 @@ const upload = multer({
   fileFilter: imageFileFilter,
 });
 
-// 중고거래 목록 (필터 + 검색 + 페이지네이션)
+// 교환 목록 (필터 + 검색 + 페이지네이션)
 router.get('/', async (req, res) => {
   try {
     const db = getDB();
-    const { idol, status, q, page = 1, limit = 20 } = req.query;
-    let sql = 'SELECT id, title, description, idol, price, contact, image_url, thumbnail_url, status, user_id, nickname, created_at FROM trades WHERE 1=1';
-    let countSql = 'SELECT COUNT(*) as total FROM trades WHERE 1=1';
+    const { idol, status, member, q, page = 1, limit = 20 } = req.query;
+    let sql = 'SELECT id, idol, member, have_cards, want_cards, description, contact, image_url, thumbnail_url, status, user_id, nickname, created_at FROM exchanges WHERE 1=1';
+    let countSql = 'SELECT COUNT(*) as total FROM exchanges WHERE 1=1';
     const params = [];
     const countParams = [];
 
@@ -35,12 +35,18 @@ router.get('/', async (req, res) => {
       params.push(status);
       countParams.push(status);
     }
+    if (member) {
+      sql += ' AND member = ?';
+      countSql += ' AND member = ?';
+      params.push(member);
+      countParams.push(member);
+    }
     if (q) {
-      sql += ' AND (title LIKE ? OR description LIKE ?)';
-      countSql += ' AND (title LIKE ? OR description LIKE ?)';
+      sql += ' AND (have_cards LIKE ? OR want_cards LIKE ? OR description LIKE ? OR member LIKE ?)';
+      countSql += ' AND (have_cards LIKE ? OR want_cards LIKE ? OR description LIKE ? OR member LIKE ?)';
       const search = `%${q}%`;
-      params.push(search, search);
-      countParams.push(search, search);
+      params.push(search, search, search, search);
+      countParams.push(search, search, search, search);
     }
 
     const countRow = await db.get(countSql, countParams);
@@ -52,10 +58,17 @@ router.get('/', async (req, res) => {
     sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
     params.push(limitNum, offset);
 
-    const trades = await db.all(sql, params);
+    const exchanges = await db.all(sql, params);
+    // JSON 파싱
+    const data = exchanges.map(e => ({
+      ...e,
+      have_cards: safeParseJSON(e.have_cards),
+      want_cards: safeParseJSON(e.want_cards),
+    }));
+
     res.json({
       ok: true,
-      data: trades,
+      data,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -69,11 +82,101 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 중고거래 등록 (로그인 유저: 비밀번호 불필요, 비로그인: 비밀번호 필수)
+// 매칭 조회 - 특정 교환글과 매칭되는 글 찾기
+router.get('/:id/matches', async (req, res) => {
+  try {
+    const db = getDB();
+    const exchange = await db.get('SELECT * FROM exchanges WHERE id = ?', [req.params.id]);
+    if (!exchange) return res.status(404).json({ ok: false, message: '게시글을 찾을 수 없습니다' });
+
+    const myHave = safeParseJSON(exchange.have_cards);
+    const myWant = safeParseJSON(exchange.want_cards);
+
+    if (myHave.length === 0 && myWant.length === 0) {
+      return res.json({ ok: true, data: [] });
+    }
+
+    // 같은 아이돌의 교환중인 다른 글 가져오기
+    const candidates = await db.all(
+      "SELECT * FROM exchanges WHERE idol = ? AND status = 'exchanging' AND id != ? ORDER BY created_at DESC",
+      [exchange.idol, exchange.id]
+    );
+
+    const matches = [];
+    for (const c of candidates) {
+      const theirHave = safeParseJSON(c.have_cards);
+      const theirWant = safeParseJSON(c.want_cards);
+
+      // 상대가 가진 카드 중 내가 원하는 카드
+      const theyHaveIWant = theirHave.filter(card => myWant.includes(card));
+      // 내가 가진 카드 중 상대가 원하는 카드
+      const iHaveTheyWant = myHave.filter(card => theirWant.includes(card));
+
+      if (theyHaveIWant.length > 0 && iHaveTheyWant.length > 0) {
+        // 쌍방 매칭 (best)
+        matches.push({
+          ...c,
+          have_cards: theirHave,
+          want_cards: theirWant,
+          match_type: 'mutual',
+          they_have_i_want: theyHaveIWant,
+          i_have_they_want: iHaveTheyWant,
+          match_score: theyHaveIWant.length + iHaveTheyWant.length,
+        });
+      } else if (theyHaveIWant.length > 0) {
+        // 상대가 내가 원하는 카드를 가짐 (partial)
+        matches.push({
+          ...c,
+          have_cards: theirHave,
+          want_cards: theirWant,
+          match_type: 'partial_they_have',
+          they_have_i_want: theyHaveIWant,
+          i_have_they_want: [],
+          match_score: theyHaveIWant.length,
+        });
+      } else if (iHaveTheyWant.length > 0) {
+        // 내가 상대가 원하는 카드를 가짐 (partial)
+        matches.push({
+          ...c,
+          have_cards: theirHave,
+          want_cards: theirWant,
+          match_type: 'partial_i_have',
+          they_have_i_want: [],
+          i_have_they_want: iHaveTheyWant,
+          match_score: iHaveTheyWant.length,
+        });
+      }
+    }
+
+    // 쌍방 매칭 우선, 그 다음 점수순
+    matches.sort((a, b) => {
+      if (a.match_type === 'mutual' && b.match_type !== 'mutual') return -1;
+      if (b.match_type === 'mutual' && a.match_type !== 'mutual') return 1;
+      return b.match_score - a.match_score;
+    });
+
+    res.json({ ok: true, data: matches });
+  } catch (err) {
+    logger.error(err.message, { stack: err.stack });
+    res.status(500).json({ ok: false, message: '매칭 조회 실패' });
+  }
+});
+
+// 교환 등록
 router.post('/', optionalAuth, upload.single('image'), async (req, res) => {
   try {
     const db = getDB();
-    const { title, description, idol, price, contact, password } = req.body;
+    const { idol, member, have_cards, want_cards, description, contact, password } = req.body;
+
+    if (!idol || !contact) {
+      return res.status(400).json({ ok: false, message: '아이돌과 연락처는 필수입니다' });
+    }
+
+    const haveArr = safeParseJSON(have_cards);
+    const wantArr = safeParseJSON(want_cards);
+    if (haveArr.length === 0 && wantArr.length === 0) {
+      return res.status(400).json({ ok: false, message: '보유 카드 또는 희망 카드를 1개 이상 입력하세요' });
+    }
 
     if (!req.user && (!password || password.length < 4)) {
       return res.status(400).json({ ok: false, message: '비밀번호는 4자 이상 입력하세요' });
@@ -89,8 +192,8 @@ router.post('/', optionalAuth, upload.single('image'), async (req, res) => {
     }
 
     await db.run(
-      'INSERT INTO trades (title, description, idol, price, contact, image_url, thumbnail_url, password, user_id, nickname) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [title, description || '', idol, parseInt(price) || 0, contact, image_url, thumbnail_url || '', hashedPw, req.user ? req.user.id : null, req.user ? req.user.nickname : null]
+      'INSERT INTO exchanges (idol, member, have_cards, want_cards, description, contact, image_url, thumbnail_url, password, user_id, nickname) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [idol, member || '', JSON.stringify(haveArr), JSON.stringify(wantArr), description || '', contact, image_url, thumbnail_url || '', hashedPw, req.user ? req.user.id : null, req.user ? req.user.nickname : null]
     );
     res.json({ ok: true, message: '등록되었습니다' });
   } catch (err) {
@@ -99,47 +202,47 @@ router.post('/', optionalAuth, upload.single('image'), async (req, res) => {
   }
 });
 
-// 비밀번호 확인 헬퍼 (로그인 유저 본인 글이면 비밀번호 불필요)
-async function verifyTradeOwner(req, res) {
+// 소유자 확인 헬퍼
+async function verifyOwner(req, res) {
   const db = getDB();
-  const trade = await db.get('SELECT * FROM trades WHERE id = ?', [req.params.id]);
-  if (!trade) {
+  const exchange = await db.get('SELECT * FROM exchanges WHERE id = ?', [req.params.id]);
+  if (!exchange) {
     res.status(404).json({ ok: false, message: '게시글을 찾을 수 없습니다' });
     return null;
   }
-  // 로그인 유저이고, 본인 글이면 통과
-  if (req.user && trade.user_id && req.user.id === trade.user_id) {
-    return trade;
+  if (req.user && exchange.user_id && req.user.id === exchange.user_id) {
+    return exchange;
   }
-  // 비밀번호 확인
   const password = req.body.password || req.headers['x-trade-password'] || '';
-  if (!trade.password || !bcrypt.compareSync(password, trade.password)) {
+  if (!exchange.password || !bcrypt.compareSync(password, exchange.password)) {
     res.status(403).json({ ok: false, message: '비밀번호가 올바르지 않습니다' });
     return null;
   }
-  return trade;
+  return exchange;
 }
 
-// 중고거래 수정
+// 교환 수정
 router.put('/:id', optionalAuth, upload.single('image'), async (req, res) => {
   try {
-    const trade = await verifyTradeOwner(req, res);
-    if (!trade) return;
+    const exchange = await verifyOwner(req, res);
+    if (!exchange) return;
 
     const db = getDB();
-    const { title, description, idol, price, contact } = req.body;
-    let image_url = req.body.image_url || trade.image_url;
-    let thumbnail_url = trade.thumbnail_url || '';
+    const { idol, member, have_cards, want_cards, description, contact } = req.body;
+    let image_url = req.body.image_url || exchange.image_url;
+    let thumbnail_url = exchange.thumbnail_url || '';
     if (req.file) {
       const uploaded = await uploadWithThumbnail(req.file.buffer);
       image_url = uploaded.imageUrl;
       thumbnail_url = uploaded.thumbnailUrl;
     }
 
+    const haveArr = have_cards ? safeParseJSON(have_cards) : safeParseJSON(exchange.have_cards);
+    const wantArr = want_cards ? safeParseJSON(want_cards) : safeParseJSON(exchange.want_cards);
+
     await db.run(
-      'UPDATE trades SET title=?, description=?, idol=?, price=?, contact=?, image_url=?, thumbnail_url=? WHERE id=?',
-      [title || trade.title, description ?? trade.description, idol || trade.idol,
-       parseInt(price) || trade.price, contact || trade.contact, image_url, thumbnail_url, req.params.id]
+      'UPDATE exchanges SET idol=?, member=?, have_cards=?, want_cards=?, description=?, contact=?, image_url=?, thumbnail_url=? WHERE id=?',
+      [idol || exchange.idol, member ?? exchange.member, JSON.stringify(haveArr), JSON.stringify(wantArr), description ?? exchange.description, contact || exchange.contact, image_url, thumbnail_url, req.params.id]
     );
     res.json({ ok: true, message: '수정되었습니다' });
   } catch (err) {
@@ -148,15 +251,18 @@ router.put('/:id', optionalAuth, upload.single('image'), async (req, res) => {
   }
 });
 
-// 중고거래 상태 변경
+// 교환 상태 변경
 router.patch('/:id/status', optionalAuth, async (req, res) => {
   try {
-    const trade = await verifyTradeOwner(req, res);
-    if (!trade) return;
+    const exchange = await verifyOwner(req, res);
+    if (!exchange) return;
 
     const db = getDB();
     const { status } = req.body;
-    await db.run('UPDATE trades SET status = ? WHERE id = ?', [status, req.params.id]);
+    if (!['exchanging', 'completed'].includes(status)) {
+      return res.status(400).json({ ok: false, message: '유효하지 않은 상태입니다' });
+    }
+    await db.run('UPDATE exchanges SET status = ? WHERE id = ?', [status, req.params.id]);
     res.json({ ok: true, message: '상태가 변경되었습니다' });
   } catch (err) {
     logger.error(err.message, { stack: err.stack });
@@ -164,14 +270,14 @@ router.patch('/:id/status', optionalAuth, async (req, res) => {
   }
 });
 
-// 중고거래 삭제
+// 교환 삭제
 router.delete('/:id', optionalAuth, async (req, res) => {
   try {
-    const trade = await verifyTradeOwner(req, res);
-    if (!trade) return;
+    const exchange = await verifyOwner(req, res);
+    if (!exchange) return;
 
     const db = getDB();
-    await db.run('DELETE FROM trades WHERE id = ?', [req.params.id]);
+    await db.run('DELETE FROM exchanges WHERE id = ?', [req.params.id]);
     res.json({ ok: true, message: '삭제되었습니다' });
   } catch (err) {
     logger.error(err.message, { stack: err.stack });
@@ -179,15 +285,15 @@ router.delete('/:id', optionalAuth, async (req, res) => {
   }
 });
 
-// 비밀번호 확인 (프론트에서 수정/삭제 전 확인용)
+// 비밀번호 확인
 router.post('/:id/verify', async (req, res) => {
   try {
     const db = getDB();
-    const trade = await db.get('SELECT password FROM trades WHERE id = ?', [req.params.id]);
-    if (!trade) return res.status(404).json({ ok: false, message: '게시글을 찾을 수 없습니다' });
+    const exchange = await db.get('SELECT password FROM exchanges WHERE id = ?', [req.params.id]);
+    if (!exchange) return res.status(404).json({ ok: false, message: '게시글을 찾을 수 없습니다' });
 
     const { password } = req.body;
-    if (!trade.password || !bcrypt.compareSync(password || '', trade.password)) {
+    if (!exchange.password || !bcrypt.compareSync(password || '', exchange.password)) {
       return res.status(403).json({ ok: false, message: '비밀번호가 올바르지 않습니다' });
     }
     res.json({ ok: true });
@@ -197,21 +303,20 @@ router.post('/:id/verify', async (req, res) => {
   }
 });
 
-// 거래글 신고
+// 게시글 신고
 const REPORT_REASONS = ['사기 의심', '허위 매물', '부적절한 내용', '기타'];
 
 router.post('/:id/report', async (req, res) => {
   try {
     const db = getDB();
-    const trade = await db.get('SELECT id FROM trades WHERE id = ?', [req.params.id]);
-    if (!trade) return res.status(404).json({ ok: false, message: '게시글을 찾을 수 없습니다' });
+    const exchange = await db.get('SELECT id FROM exchanges WHERE id = ?', [req.params.id]);
+    if (!exchange) return res.status(404).json({ ok: false, message: '게시글을 찾을 수 없습니다' });
 
     const { reason, detail } = req.body;
     if (!reason || !REPORT_REASONS.includes(reason)) {
       return res.status(400).json({ ok: false, message: '신고 사유를 선택하세요' });
     }
 
-    // 같은 글에 대한 중복 pending 신고 제한 (5건)
     const existing = await db.get(
       'SELECT COUNT(*) as cnt FROM trade_reports WHERE trade_id = ? AND status = ?',
       [req.params.id, 'pending']
@@ -230,5 +335,10 @@ router.post('/:id/report', async (req, res) => {
     res.status(500).json({ ok: false, message: '신고 접수 실패' });
   }
 });
+
+function safeParseJSON(str) {
+  if (Array.isArray(str)) return str;
+  try { return JSON.parse(str) || []; } catch { return []; }
+}
 
 module.exports = router;

@@ -60,17 +60,20 @@ async function initDB() {
       agency TEXT
     );
 
-    CREATE TABLE IF NOT EXISTS trades (
+    CREATE TABLE IF NOT EXISTS exchanges (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      description TEXT,
       idol TEXT NOT NULL,
-      price INTEGER NOT NULL DEFAULT 0,
+      member TEXT NOT NULL DEFAULT '',
+      have_cards TEXT NOT NULL DEFAULT '[]',
+      want_cards TEXT NOT NULL DEFAULT '[]',
+      description TEXT,
       contact TEXT NOT NULL,
       image_url TEXT,
       thumbnail_url TEXT DEFAULT '',
-      status TEXT DEFAULT 'selling',
+      status TEXT DEFAULT 'exchanging',
       password TEXT NOT NULL DEFAULT '',
+      user_id INTEGER DEFAULT NULL,
+      nickname TEXT DEFAULT NULL,
       created_at TEXT DEFAULT (datetime('now'))
     );
 
@@ -123,26 +126,19 @@ async function initDB() {
 
   // 인덱스 생성
   await db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_trades_idol ON trades(idol);
-    CREATE INDEX IF NOT EXISTS idx_trades_status ON trades(status);
-    CREATE INDEX IF NOT EXISTS idx_trades_created ON trades(created_at);
+    CREATE INDEX IF NOT EXISTS idx_exchanges_idol ON exchanges(idol);
+    CREATE INDEX IF NOT EXISTS idx_exchanges_status ON exchanges(status);
+    CREATE INDEX IF NOT EXISTS idx_exchanges_created ON exchanges(created_at);
     CREATE INDEX IF NOT EXISTS idx_banners_idol ON banners(idol);
     CREATE INDEX IF NOT EXISTS idx_banners_category ON banners(category);
     CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
     CREATE INDEX IF NOT EXISTS idx_trade_reports_status ON trade_reports(status);
     CREATE INDEX IF NOT EXISTS idx_trade_reports_trade ON trade_reports(trade_id);
+    CREATE INDEX IF NOT EXISTS idx_exchanges_member ON exchanges(member);
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
     CREATE INDEX IF NOT EXISTS idx_page_views_created ON page_views(created_at);
     CREATE INDEX IF NOT EXISTS idx_page_views_page ON page_views(page);
   `);
-
-  // trades 테이블에 user_id, nickname 컬럼 추가 (기존 데이터 호환)
-  try {
-    await db.run('ALTER TABLE trades ADD COLUMN user_id INTEGER DEFAULT NULL');
-  } catch {}
-  try {
-    await db.run('ALTER TABLE trades ADD COLUMN nickname TEXT DEFAULT NULL');
-  } catch {}
 
   // 기본 아이돌 데이터 삽입
   const count = await db.get('SELECT COUNT(*) as cnt FROM idols');

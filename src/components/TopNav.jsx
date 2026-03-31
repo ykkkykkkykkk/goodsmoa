@@ -56,7 +56,7 @@ export default function TopNav({ categories, selected, onSelect, user, onUserCha
                 {cat}
               </button>
             ))}
-            <a href="#trade" className="nav-btn trade-btn" aria-label="중고거래 페이지로 이동">중고거래</a>
+            <a href="#trade" className="nav-btn trade-btn" aria-label="포카교환 페이지로 이동">포카교환</a>
             <a href="#report" className="nav-btn report-btn" aria-label="쇼핑몰 제보 페이지로 이동">제보하기</a>
           </nav>
           <div className="auth-area">

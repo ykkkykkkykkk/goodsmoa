@@ -82,7 +82,7 @@ export default function App() {
       main: '굿즈모아 - 아이돌 굿즈 쇼핑몰 모음',
       admin: '굿즈모아 - 관리자',
       report: '굿즈모아 - 쇼핑몰 제보',
-      trade: '굿즈모아 - 중고거래',
+      trade: '굿즈모아 - 포카교환',
     }
     document.title = titles[page] || '굿즈모아'
     trackPageView(page)

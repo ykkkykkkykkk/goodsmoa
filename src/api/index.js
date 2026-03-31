@@ -174,8 +174,8 @@ export function rejectReport(id) {
   }).then(r => r.json())
 }
 
-// 중고거래
-export async function getTrades(idol, status, q, page = 1, limit = 20) {
+// 포토카드 교환
+export async function getExchanges(idol, status, q, page = 1, limit = 20) {
   const params = new URLSearchParams()
   if (idol) params.set('idol', idol)
   if (status) params.set('status', status)
@@ -186,7 +186,7 @@ export async function getTrades(idol, status, q, page = 1, limit = 20) {
   return res
 }
 
-export function createTrade(formData) {
+export function createExchange(formData) {
   return fetch(`${BASE}/trades`, {
     method: 'POST',
     headers: userAuthHeaders(),
@@ -194,7 +194,7 @@ export function createTrade(formData) {
   }).then(r => r.json())
 }
 
-export function updateTrade(id, formData, password) {
+export function updateExchange(id, formData, password) {
   if (password) formData.append('password', password)
   return fetch(`${BASE}/trades/${id}`, {
     method: 'PUT',
@@ -203,7 +203,7 @@ export function updateTrade(id, formData, password) {
   }).then(r => r.json())
 }
 
-export function updateTradeStatus(id, status, password) {
+export function updateExchangeStatus(id, status, password) {
   return fetch(`${BASE}/trades/${id}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...userAuthHeaders() },
@@ -211,7 +211,7 @@ export function updateTradeStatus(id, status, password) {
   }).then(r => r.json())
 }
 
-export function deleteTrade(id, password) {
+export function deleteExchange(id, password) {
   return fetch(`${BASE}/trades/${id}`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json', ...userAuthHeaders() },
@@ -219,12 +219,17 @@ export function deleteTrade(id, password) {
   }).then(r => r.json())
 }
 
-export function verifyTradePassword(id, password) {
+export function verifyExchangePassword(id, password) {
   return fetch(`${BASE}/trades/${id}/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ password }),
   }).then(r => r.json())
+}
+
+export async function getMatches(id) {
+  const res = await fetchJSON(`${BASE}/trades/${id}/matches`)
+  return res.data
 }
 
 export function submitReport(formData) {
@@ -234,7 +239,7 @@ export function submitReport(formData) {
   }).then(r => r.json())
 }
 
-// 거래글 신고
+// 교환글 신고
 export function reportTrade(id, reason, detail) {
   return fetch(`${BASE}/trades/${id}/report`, {
     method: 'POST',

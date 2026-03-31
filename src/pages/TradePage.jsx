@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react'
-import { getIdols, getTrades, createTrade, updateTrade, updateTradeStatus, deleteTrade, reportTrade, signup, login, getUserToken, setUserToken, clearUserToken, getUserInfo, setUserInfo } from '../api'
+import { getIdols, getExchanges, createExchange, updateExchange, updateExchangeStatus, deleteExchange, getMatches, reportTrade, signup, login, getUserToken, setUserToken, clearUserToken, getUserInfo, setUserInfo } from '../api'
 import { UserContext } from '../App'
 
 export default function TradePage() {
   const [idols, setIdols] = useState([])
-  const [trades, setTrades] = useState([])
+  const [exchanges, setExchanges] = useState([])
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 })
   const [filterIdol, setFilterIdol] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
@@ -12,7 +12,11 @@ export default function TradePage() {
   const [searchInput, setSearchInput] = useState('')
   const [page, setPage] = useState(1)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ title: '', description: '', idol: '', price: '', contact: '', password: '' })
+  const [form, setForm] = useState({ idol: '', member: '', description: '', contact: '', password: '' })
+  const [haveInput, setHaveInput] = useState('')
+  const [wantInput, setWantInput] = useState('')
+  const [haveTags, setHaveTags] = useState([])
+  const [wantTags, setWantTags] = useState([])
   const [file, setFile] = useState(null)
   const [msg, setMsg] = useState('')
   const [loading, setLoading] = useState(false)
@@ -35,7 +39,10 @@ export default function TradePage() {
   const [reportDetail, setReportDetail] = useState('')
   const [reportMsg, setReportMsg] = useState('')
 
-  // 연락처 공개 토글 (게시글별)
+  // 매칭 결과
+  const [matchModal, setMatchModal] = useState({ show: false, id: null, data: [], loading: false })
+
+  // 연락처 공개 토글
   const [visibleContacts, setVisibleContacts] = useState({})
 
   // 로그인/회원가입
@@ -49,13 +56,13 @@ export default function TradePage() {
     getIdols().then(setIdols).catch(console.error)
   }, [])
 
-  const loadTrades = () => {
-    getTrades(filterIdol, filterStatus, searchQuery, page).then(res => {
-      setTrades(res.data)
+  const loadExchanges = () => {
+    getExchanges(filterIdol, filterStatus, searchQuery, page).then(res => {
+      setExchanges(res.data)
       setPagination(res.pagination)
     }).catch(console.error)
   }
-  useEffect(loadTrades, [filterIdol, filterStatus, searchQuery, page])
+  useEffect(loadExchanges, [filterIdol, filterStatus, searchQuery, page])
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -63,7 +70,7 @@ export default function TradePage() {
     setSearchQuery(searchInput)
   }
 
-  // 로그인/회원가입 처리
+  // 로그인/회원가입
   const handleAuth = async (e) => {
     e.preventDefault()
     setAuthLoading(true)
@@ -97,13 +104,42 @@ export default function TradePage() {
     setUser(null)
   }
 
-  // 본인 글 여부 확인
-  const isMyTrade = (trade) => user && trade.user_id && user.id === trade.user_id
+  const isMyExchange = (ex) => user && ex.user_id && user.id === ex.user_id
 
+  // 태그 추가
+  const addTag = (type, value) => {
+    const trimmed = value.trim()
+    if (!trimmed) return
+    if (type === 'have') {
+      if (!haveTags.includes(trimmed)) setHaveTags([...haveTags, trimmed])
+      setHaveInput('')
+    } else {
+      if (!wantTags.includes(trimmed)) setWantTags([...wantTags, trimmed])
+      setWantInput('')
+    }
+  }
+
+  const removeTag = (type, idx) => {
+    if (type === 'have') setHaveTags(haveTags.filter((_, i) => i !== idx))
+    else setWantTags(wantTags.filter((_, i) => i !== idx))
+  }
+
+  const handleTagKeyDown = (type, e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      addTag(type, type === 'have' ? haveInput : wantInput)
+    }
+  }
+
+  // 폼 제출
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.title || !form.idol || !form.price || !form.contact) {
-      setMsg('제목, 아이돌, 가격, 연락처는 필수입니다.')
+    if (!form.idol || !form.contact) {
+      setMsg('아이돌과 연락처는 필수입니다.')
+      return
+    }
+    if (haveTags.length === 0 && wantTags.length === 0) {
+      setMsg('보유 카드 또는 희망 카드를 1개 이상 입력하세요.')
       return
     }
     if (!user && !editId && (!form.password || form.password.length < 4)) {
@@ -113,30 +149,26 @@ export default function TradePage() {
     setLoading(true)
     try {
       const fd = new FormData()
-      fd.append('title', form.title)
-      fd.append('description', form.description)
       fd.append('idol', form.idol)
-      fd.append('price', form.price)
+      fd.append('member', form.member)
+      fd.append('have_cards', JSON.stringify(haveTags))
+      fd.append('want_cards', JSON.stringify(wantTags))
+      fd.append('description', form.description)
       fd.append('contact', form.contact)
       if (file) fd.append('image', file)
 
       let res
       if (editId) {
-        res = await updateTrade(editId, fd, editPw || '')
+        res = await updateExchange(editId, fd, editPw || '')
       } else {
         if (!user) fd.append('password', form.password)
-        res = await createTrade(fd)
+        res = await createExchange(fd)
       }
 
       if (res.ok) {
         setMsg(editId ? '수정되었습니다!' : '등록되었습니다!')
-        setForm({ title: '', description: '', idol: '', price: '', contact: '', password: '' })
-        setFile(null)
-        setPreview(null)
-        setShowForm(false)
-        setEditId(null)
-        setEditPw('')
-        loadTrades()
+        resetForm()
+        loadExchanges()
       } else {
         setMsg(res.message || '실패')
       }
@@ -147,22 +179,43 @@ export default function TradePage() {
     }
   }
 
-  // 파일 선택 시 미리보기
+  const resetForm = () => {
+    setForm({ idol: '', member: '', description: '', contact: '', password: '' })
+    setHaveTags([])
+    setWantTags([])
+    setHaveInput('')
+    setWantInput('')
+    setFile(null)
+    setPreview(null)
+    setShowForm(false)
+    setEditId(null)
+    setEditPw('')
+  }
+
   const handleFileChange = (e) => {
     const f = e.target.files[0]
     setFile(f)
     if (f) {
-      const url = URL.createObjectURL(f)
-      setPreview(url)
+      setPreview(URL.createObjectURL(f))
     } else {
       setPreview(null)
     }
   }
 
-  // 연락처 마스킹
   const maskContact = (contact) => {
     if (!contact || contact.length <= 4) return '****'
     return contact.slice(0, 3) + '*'.repeat(contact.length - 3)
+  }
+
+  // 매칭 보기
+  const handleViewMatches = async (id) => {
+    setMatchModal({ show: true, id, data: [], loading: true })
+    try {
+      const data = await getMatches(id)
+      setMatchModal({ show: true, id, data, loading: false })
+    } catch {
+      setMatchModal({ show: true, id, data: [], loading: false })
+    }
   }
 
   // 신고 제출
@@ -180,33 +233,32 @@ export default function TradePage() {
     }
   }
 
-  // 비밀번호 확인 후 동작 (비로그인 글용)
+  // 비밀번호 확인 후 동작
   const requestAction = (action, id) => {
-    const trade = trades.find(t => t.id === id)
-    // 로그인 유저 본인 글이면 비밀번호 없이 바로 실행
-    if (isMyTrade(trade)) {
-      if (action === 'sold') {
-        updateTradeStatus(id, 'sold', '').then(res => { if (res.ok) loadTrades() })
+    const ex = exchanges.find(t => t.id === id)
+    if (isMyExchange(ex)) {
+      if (action === 'completed') {
+        updateExchangeStatus(id, 'completed', '').then(res => { if (res.ok) loadExchanges() })
       } else if (action === 'delete') {
         if (confirm('정말 삭제하시겠습니까?')) {
-          deleteTrade(id, '').then(res => { if (res.ok) loadTrades() })
+          deleteExchange(id, '').then(res => { if (res.ok) loadExchanges() })
         }
       } else if (action === 'edit') {
         setEditPw('')
         setEditId(id)
         setForm({
-          title: trade.title,
-          description: trade.description || '',
-          idol: trade.idol,
-          price: String(trade.price),
-          contact: trade.contact,
+          idol: ex.idol,
+          member: ex.member || '',
+          description: ex.description || '',
+          contact: ex.contact,
           password: '',
         })
+        setHaveTags(ex.have_cards || [])
+        setWantTags(ex.want_cards || [])
         setShowForm(true)
       }
       return
     }
-    // 비밀번호 모달
     setPwModal({ show: true, action, id })
     setPwInput('')
     setPwError('')
@@ -214,41 +266,33 @@ export default function TradePage() {
 
   const handlePwConfirm = async () => {
     const { action, id } = pwModal
-    if (action === 'sold') {
-      const res = await updateTradeStatus(id, 'sold', pwInput)
-      if (res.ok) {
-        setPwModal({ show: false, action: null, id: null })
-        loadTrades()
-      } else {
-        setPwError(res.message || '비밀번호가 올바르지 않습니다')
-      }
+    if (action === 'completed') {
+      const res = await updateExchangeStatus(id, 'completed', pwInput)
+      if (res.ok) { setPwModal({ show: false, action: null, id: null }); loadExchanges() }
+      else setPwError(res.message || '비밀번호가 올바르지 않습니다')
     } else if (action === 'delete') {
-      const res = await deleteTrade(id, pwInput)
-      if (res.ok) {
-        setPwModal({ show: false, action: null, id: null })
-        loadTrades()
-      } else {
-        setPwError(res.message || '비밀번호가 올바르지 않습니다')
-      }
+      const res = await deleteExchange(id, pwInput)
+      if (res.ok) { setPwModal({ show: false, action: null, id: null }); loadExchanges() }
+      else setPwError(res.message || '비밀번호가 올바르지 않습니다')
     } else if (action === 'edit') {
-      const trade = trades.find(t => t.id === id)
-      if (!trade) return
+      const ex = exchanges.find(t => t.id === id)
+      if (!ex) return
       setEditPw(pwInput)
       setEditId(id)
       setForm({
-        title: trade.title,
-        description: trade.description || '',
-        idol: trade.idol,
-        price: String(trade.price),
-        contact: trade.contact,
+        idol: ex.idol,
+        member: ex.member || '',
+        description: ex.description || '',
+        contact: ex.contact,
         password: '',
       })
+      setHaveTags(ex.have_cards || [])
+      setWantTags(ex.want_cards || [])
       setShowForm(true)
       setPwModal({ show: false, action: null, id: null })
     }
   }
 
-  const formatPrice = (n) => Number(n).toLocaleString() + '원'
   const timeAgo = (dateStr) => {
     const diff = Date.now() - new Date(dateStr + 'Z').getTime()
     const mins = Math.floor(diff / 60000)
@@ -258,12 +302,23 @@ export default function TradePage() {
     return `${Math.floor(hours / 24)}일 전`
   }
 
+  const matchTypeLabel = (type) => {
+    if (type === 'mutual') return '쌍방 매칭'
+    if (type === 'partial_they_have') return '상대가 내가 원하는 카드 보유'
+    return '내가 상대가 원하는 카드 보유'
+  }
+
+  const matchTypeBadgeClass = (type) => {
+    if (type === 'mutual') return 'match-badge-mutual'
+    return 'match-badge-partial'
+  }
+
   return (
     <div className="trade-page">
       <header className="top-nav">
         <div className="top-nav-inner">
           <a href="#main" className="logo">굿즈모아</a>
-          <span className="page-title">중고거래</span>
+          <span className="page-title">포카교환</span>
           <div className="auth-area">
             {user ? (
               <>
@@ -281,8 +336,8 @@ export default function TradePage() {
       </header>
 
       <div className="trade-banner">
-        <p>아이돌 굿즈를 팬들끼리 직접 사고팔 수 있는 공간입니다.</p>
-        <p className="trade-notice">거래 시 사기에 주의하세요. 굿즈모아는 직접 거래에 대한 책임을 지지 않습니다.</p>
+        <p>아이돌 포토카드를 팬들끼리 교환할 수 있는 공간입니다.</p>
+        <p className="trade-notice">보유 카드와 희망 카드를 등록하면 자동으로 매칭해드려요!</p>
       </div>
 
       <div className="trade-container">
@@ -294,13 +349,13 @@ export default function TradePage() {
             </select>
             <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1) }}>
               <option value="">전체 상태</option>
-              <option value="selling">판매중</option>
-              <option value="sold">판매완료</option>
+              <option value="exchanging">교환중</option>
+              <option value="completed">교환완료</option>
             </select>
             <form onSubmit={handleSearch} className="trade-search">
               <input
                 type="text"
-                placeholder="검색..."
+                placeholder="카드/멤버 검색..."
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
               />
@@ -314,28 +369,65 @@ export default function TradePage() {
               return
             }
             setShowForm(!showForm)
-            if (showForm) { setEditId(null); setEditPw('') }
+            if (showForm) resetForm()
           }}>
-            {showForm ? '닫기' : '글쓰기'}
+            {showForm ? '닫기' : '교환 등록'}
           </button>
         </div>
 
         {msg && <div className={`msg ${msg.includes('되었습니다') ? 'msg-ok' : 'msg-err'}`}>{msg}</div>}
 
         {showForm && (
-          <form onSubmit={handleSubmit} className="trade-form">
-            <input placeholder="제목 (예: BTS 지민 포카 양도)" value={form.title}
-              onChange={e => setForm({ ...form, title: e.target.value })} required />
-            <textarea placeholder="상세 설명 (상태, 구성품 등)" rows={3} value={form.description}
-              onChange={e => setForm({ ...form, description: e.target.value })} />
+          <form onSubmit={handleSubmit} className="trade-form exchange-form">
             <div className="trade-form-row">
               <select value={form.idol} onChange={e => setForm({ ...form, idol: e.target.value })} required>
                 <option value="">아이돌 선택</option>
                 {idols.map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
               </select>
-              <input type="number" placeholder="가격 (원)" value={form.price}
-                onChange={e => setForm({ ...form, price: e.target.value })} required min="0" />
+              <input placeholder="멤버 (선택)" value={form.member}
+                onChange={e => setForm({ ...form, member: e.target.value })} />
             </div>
+
+            <div className="tag-input-group">
+              <label className="tag-label have-label">보유 카드</label>
+              <div className="tag-input-wrap">
+                {haveTags.map((tag, i) => (
+                  <span key={i} className="card-tag have-tag">
+                    {tag}
+                    <button type="button" onClick={() => removeTag('have', i)}>&times;</button>
+                  </span>
+                ))}
+                <input
+                  placeholder="카드명 입력 후 Enter (예: 럭키드로우 민지)"
+                  value={haveInput}
+                  onChange={e => setHaveInput(e.target.value)}
+                  onKeyDown={e => handleTagKeyDown('have', e)}
+                  onBlur={() => addTag('have', haveInput)}
+                />
+              </div>
+            </div>
+
+            <div className="tag-input-group">
+              <label className="tag-label want-label">희망 카드</label>
+              <div className="tag-input-wrap">
+                {wantTags.map((tag, i) => (
+                  <span key={i} className="card-tag want-tag">
+                    {tag}
+                    <button type="button" onClick={() => removeTag('want', i)}>&times;</button>
+                  </span>
+                ))}
+                <input
+                  placeholder="카드명 입력 후 Enter (예: 앨범 포카 하니)"
+                  value={wantInput}
+                  onChange={e => setWantInput(e.target.value)}
+                  onKeyDown={e => handleTagKeyDown('want', e)}
+                  onBlur={() => addTag('want', wantInput)}
+                />
+              </div>
+            </div>
+
+            <textarea placeholder="추가 설명 (카드 상태, 교환 조건 등)" rows={2} value={form.description}
+              onChange={e => setForm({ ...form, description: e.target.value })} />
             <input placeholder="연락처 (트위터, 오픈채팅 등)" value={form.contact}
               onChange={e => setForm({ ...form, contact: e.target.value })} required />
             {!user && !editId && (
@@ -353,64 +445,82 @@ export default function TradePage() {
               {loading ? (editId ? '수정 중...' : '등록 중...') : (editId ? '수정하기' : '등록하기')}
             </button>
             {editId && (
-              <button type="button" className="cancel-btn" onClick={() => {
-                setEditId(null); setEditPw(''); setShowForm(false)
-                setForm({ title: '', description: '', idol: '', price: '', contact: '', password: '' })
-              }}>취소</button>
+              <button type="button" className="cancel-btn" onClick={resetForm}>취소</button>
             )}
           </form>
         )}
 
         <div className="trade-list">
-          {trades.length === 0 ? (
-            <div className="empty">등록된 거래 글이 없습니다.</div>
-          ) : trades.map(t => (
-            <div key={t.id} className={`trade-card ${t.status === 'sold' ? 'trade-sold' : ''}`}>
-              {(t.thumbnail_url || t.image_url) && (
+          {exchanges.length === 0 ? (
+            <div className="empty">등록된 교환 글이 없습니다.</div>
+          ) : exchanges.map(ex => (
+            <div key={ex.id} className={`trade-card exchange-card ${ex.status === 'completed' ? 'trade-sold' : ''}`}>
+              {(ex.thumbnail_url || ex.image_url) && (
                 <div className="trade-image-wrap">
-                  <img src={t.thumbnail_url || t.image_url} alt={t.title} loading="lazy" />
-                  {t.status === 'sold' && <div className="sold-badge">판매완료</div>}
+                  <img src={ex.thumbnail_url || ex.image_url} alt="포토카드" loading="lazy" />
+                  {ex.status === 'completed' && <div className="sold-badge">교환완료</div>}
                 </div>
               )}
-              {!t.image_url && t.status === 'sold' && (
-                <div className="sold-badge-inline">판매완료</div>
+              {!ex.image_url && ex.status === 'completed' && (
+                <div className="sold-badge-inline">교환완료</div>
               )}
               <div className="trade-body">
                 <div className="trade-header">
-                  <h3>{t.title}</h3>
-                  <span className="trade-price">{formatPrice(t.price)}</span>
+                  <h3>{ex.idol}{ex.member ? ` - ${ex.member}` : ''}</h3>
                 </div>
-                {t.description && <p className="trade-desc">{t.description}</p>}
+
+                <div className="card-tags-section">
+                  {ex.have_cards && ex.have_cards.length > 0 && (
+                    <div className="card-tags-row">
+                      <span className="card-tags-label have-label">보유</span>
+                      <div className="card-tags-list">
+                        {ex.have_cards.map((c, i) => <span key={i} className="card-tag have-tag">{c}</span>)}
+                      </div>
+                    </div>
+                  )}
+                  {ex.want_cards && ex.want_cards.length > 0 && (
+                    <div className="card-tags-row">
+                      <span className="card-tags-label want-label">희망</span>
+                      <div className="card-tags-list">
+                        {ex.want_cards.map((c, i) => <span key={i} className="card-tag want-tag">{c}</span>)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {ex.description && <p className="trade-desc">{ex.description}</p>}
                 <div className="trade-meta">
-                  <span className="tag tag-idol">{t.idol}</span>
-                  {t.nickname && <span className="trade-nickname">{t.nickname}</span>}
-                  <span className="trade-time">{timeAgo(t.created_at)}</span>
+                  <span className="tag tag-idol">{ex.idol}</span>
+                  {ex.nickname && <span className="trade-nickname">{ex.nickname}</span>}
+                  <span className="trade-time">{timeAgo(ex.created_at)}</span>
                 </div>
                 <div className="trade-contact">
                   <strong>연락처:</strong>{' '}
-                  {visibleContacts[t.id] ? t.contact : maskContact(t.contact)}
+                  {visibleContacts[ex.id] ? ex.contact : maskContact(ex.contact)}
                   <button className="contact-toggle" onClick={() =>
-                    setVisibleContacts(v => ({ ...v, [t.id]: !v[t.id] }))
+                    setVisibleContacts(v => ({ ...v, [ex.id]: !v[ex.id] }))
                   }>
-                    {visibleContacts[t.id] ? '숨기기' : '보기'}
+                    {visibleContacts[ex.id] ? '숨기기' : '보기'}
                   </button>
                 </div>
                 <div className="trade-actions">
-                  {t.status === 'selling' && (isMyTrade(t) || !t.user_id) && (
+                  {ex.status === 'exchanging' && (
+                    <button onClick={() => handleViewMatches(ex.id)} className="match-btn">매칭 찾기</button>
+                  )}
+                  {ex.status === 'exchanging' && (isMyExchange(ex) || !ex.user_id) && (
                     <>
-                      <button onClick={() => requestAction('edit', t.id)} className="edit-btn">수정</button>
-                      <button onClick={() => requestAction('sold', t.id)} className="sold-btn">판매완료</button>
-                      <button onClick={() => requestAction('delete', t.id)} className="del-btn">삭제</button>
+                      <button onClick={() => requestAction('edit', ex.id)} className="edit-btn">수정</button>
+                      <button onClick={() => requestAction('completed', ex.id)} className="sold-btn">교환완료</button>
+                      <button onClick={() => requestAction('delete', ex.id)} className="del-btn">삭제</button>
                     </>
                   )}
-                  <button onClick={() => { setReportModal({ show: true, id: t.id }); setReportReason(''); setReportDetail(''); setReportMsg('') }} className="report-btn-trade">신고</button>
+                  <button onClick={() => { setReportModal({ show: true, id: ex.id }); setReportReason(''); setReportDetail(''); setReportMsg('') }} className="report-btn-trade">신고</button>
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* 페이지네이션 */}
         {pagination.totalPages > 1 && (
           <div className="pagination">
             <button disabled={page <= 1} onClick={() => setPage(page - 1)}>이전</button>
@@ -420,6 +530,63 @@ export default function TradePage() {
         )}
       </div>
 
+      {/* 매칭 결과 모달 */}
+      {matchModal.show && (
+        <div className="modal-overlay" onClick={() => setMatchModal({ show: false, id: null, data: [], loading: false })}>
+          <div className="modal match-modal" onClick={e => e.stopPropagation()}>
+            <h3>매칭 결과</h3>
+            {matchModal.loading ? (
+              <p>매칭 검색 중...</p>
+            ) : matchModal.data.length === 0 ? (
+              <p>아직 매칭되는 교환글이 없습니다.</p>
+            ) : (
+              <div className="match-list">
+                {matchModal.data.map(m => (
+                  <div key={m.id} className="match-item">
+                    <div className="match-item-header">
+                      <span className={`match-badge ${matchTypeBadgeClass(m.match_type)}`}>
+                        {matchTypeLabel(m.match_type)}
+                      </span>
+                      {m.nickname && <span className="match-nickname">{m.nickname}</span>}
+                    </div>
+                    <div className="match-item-body">
+                      {m.they_have_i_want.length > 0 && (
+                        <div className="match-detail">
+                          <span className="match-detail-label">상대 보유 (내가 원하는):</span>
+                          <div className="card-tags-list">
+                            {m.they_have_i_want.map((c, i) => <span key={i} className="card-tag have-tag">{c}</span>)}
+                          </div>
+                        </div>
+                      )}
+                      {m.i_have_they_want.length > 0 && (
+                        <div className="match-detail">
+                          <span className="match-detail-label">내가 보유 (상대가 원하는):</span>
+                          <div className="card-tags-list">
+                            {m.i_have_they_want.map((c, i) => <span key={i} className="card-tag want-tag">{c}</span>)}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="match-item-contact">
+                      <strong>연락처:</strong>{' '}
+                      {visibleContacts[`match_${m.id}`] ? m.contact : maskContact(m.contact)}
+                      <button className="contact-toggle" onClick={() =>
+                        setVisibleContacts(v => ({ ...v, [`match_${m.id}`]: !v[`match_${m.id}`] }))
+                      }>
+                        {visibleContacts[`match_${m.id}`] ? '숨기기' : '보기'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="modal-actions">
+              <button onClick={() => setMatchModal({ show: false, id: null, data: [], loading: false })}>닫기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 로그인/회원가입 모달 */}
       {authModal.show && (
         <div className="modal-overlay" onClick={() => setAuthModal({ show: false, mode: 'login' })}>
@@ -427,24 +594,20 @@ export default function TradePage() {
             <h3>{authModal.mode === 'login' ? '로그인' : '회원가입'}</h3>
             <form onSubmit={handleAuth}>
               <input
-                type="text"
-                placeholder="아이디 (영문/숫자, 3~20자)"
+                type="text" placeholder="아이디 (영문/숫자, 3~20자)"
                 value={authForm.username}
                 onChange={e => setAuthForm({ ...authForm, username: e.target.value })}
-                autoFocus
-                required
+                autoFocus required
               />
               <input
-                type="password"
-                placeholder="비밀번호 (4자 이상)"
+                type="password" placeholder="비밀번호 (4자 이상)"
                 value={authForm.password}
                 onChange={e => setAuthForm({ ...authForm, password: e.target.value })}
                 required
               />
               {authModal.mode === 'signup' && (
                 <input
-                  type="text"
-                  placeholder="닉네임 (2~10자)"
+                  type="text" placeholder="닉네임 (2~10자)"
                   value={authForm.nickname}
                   onChange={e => setAuthForm({ ...authForm, nickname: e.target.value })}
                   required
@@ -476,11 +639,9 @@ export default function TradePage() {
             <h3>비밀번호 확인</h3>
             <p>게시글 작성 시 설정한 비밀번호를 입력하세요.</p>
             <input
-              type="password"
-              value={pwInput}
+              type="password" value={pwInput}
               onChange={e => setPwInput(e.target.value)}
-              placeholder="비밀번호"
-              autoFocus
+              placeholder="비밀번호" autoFocus
               onKeyDown={e => e.key === 'Enter' && handlePwConfirm()}
             />
             {pwError && <p className="err">{pwError}</p>}
@@ -506,10 +667,8 @@ export default function TradePage() {
               <option value="기타">기타</option>
             </select>
             <textarea
-              placeholder="상세 내용 (선택)"
-              rows={3}
-              value={reportDetail}
-              onChange={e => setReportDetail(e.target.value)}
+              placeholder="상세 내용 (선택)" rows={3}
+              value={reportDetail} onChange={e => setReportDetail(e.target.value)}
               style={{ width: '100%', marginTop: 8, padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 8, resize: 'vertical', fontSize: '0.9rem' }}
             />
             {reportMsg && <p className={reportMsg.includes('접수') ? 'msg-ok' : 'err'} style={{ marginTop: 8 }}>{reportMsg}</p>}

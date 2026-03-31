@@ -198,14 +198,14 @@ router.post('/reports/:id/reject', authAdmin, async (req, res) => {
 router.get('/stats', authAdmin, async (req, res) => {
   try {
     const db = getDB();
-    const [bannerCount, tradeCount, tradeSelling, tradeSold, reportPending, tradeReportPending, idolStats, userCount, viewsToday, viewsTotal, uniqueToday, viewsByPage] = await Promise.all([
+    const [bannerCount, exchangeCount, exchangeActive, exchangeCompleted, reportPending, tradeReportPending, idolStats, userCount, viewsToday, viewsTotal, uniqueToday, viewsByPage] = await Promise.all([
       db.get('SELECT COUNT(*) as cnt FROM banners'),
-      db.get('SELECT COUNT(*) as cnt FROM trades'),
-      db.get("SELECT COUNT(*) as cnt FROM trades WHERE status = 'selling'"),
-      db.get("SELECT COUNT(*) as cnt FROM trades WHERE status = 'sold'"),
+      db.get('SELECT COUNT(*) as cnt FROM exchanges'),
+      db.get("SELECT COUNT(*) as cnt FROM exchanges WHERE status = 'exchanging'"),
+      db.get("SELECT COUNT(*) as cnt FROM exchanges WHERE status = 'completed'"),
       db.get("SELECT COUNT(*) as cnt FROM reports WHERE status = 'pending'"),
       db.get("SELECT COUNT(*) as cnt FROM trade_reports WHERE status = 'pending'"),
-      db.all("SELECT idol, COUNT(*) as cnt FROM trades GROUP BY idol ORDER BY cnt DESC LIMIT 10"),
+      db.all("SELECT idol, COUNT(*) as cnt FROM exchanges GROUP BY idol ORDER BY cnt DESC LIMIT 10"),
       db.get('SELECT COUNT(*) as cnt FROM users'),
       db.get("SELECT COUNT(*) as cnt FROM page_views WHERE created_at >= date('now')"),
       db.get('SELECT COUNT(*) as cnt FROM page_views'),
@@ -216,7 +216,7 @@ router.get('/stats', authAdmin, async (req, res) => {
       ok: true,
       data: {
         banners: bannerCount.cnt,
-        trades: { total: tradeCount.cnt, selling: tradeSelling.cnt, sold: tradeSold.cnt },
+        exchanges: { total: exchangeCount.cnt, exchanging: exchangeActive.cnt, completed: exchangeCompleted.cnt },
         pendingReports: reportPending.cnt,
         pendingTradeReports: tradeReportPending.cnt,
         topIdols: idolStats,
@@ -241,9 +241,9 @@ router.get('/trade-reports', authAdmin, async (req, res) => {
   try {
     const db = getDB();
     const { status } = req.query;
-    let sql = `SELECT tr.*, t.title as trade_title, t.idol as trade_idol
+    let sql = `SELECT tr.*, e.idol as trade_idol, e.member as trade_member
                FROM trade_reports tr
-               LEFT JOIN trades t ON tr.trade_id = t.id`;
+               LEFT JOIN exchanges e ON tr.trade_id = e.id`;
     const params = [];
     if (status) {
       sql += ' WHERE tr.status = ?';
@@ -272,7 +272,7 @@ router.post('/trade-reports/:id/resolve', authAdmin, async (req, res) => {
     if (action === 'resolved' && req.body.deleteTrade) {
       const report = await db.get('SELECT trade_id FROM trade_reports WHERE id = ?', [req.params.id]);
       if (report) {
-        await db.run('DELETE FROM trades WHERE id = ?', [report.trade_id]);
+        await db.run('DELETE FROM exchanges WHERE id = ?', [report.trade_id]);
       }
     }
     res.json({ ok: true, message: action === 'resolved' ? '신고가 처리되었습니다' : '신고가 무시되었습니다' });

@@ -284,7 +284,7 @@ function StatsPanel() {
 
   if (!stats) return <div>로딩 중...</div>
 
-  const PAGE_LABELS = { main: '메인', trade: '중고거래', report: '제보', admin: '관리자' }
+  const PAGE_LABELS = { main: '메인', trade: '포카교환', report: '제보', admin: '관리자' }
 
   return (
     <div>
@@ -311,16 +311,16 @@ function StatsPanel() {
           <div className="stat-label">등록 배너</div>
         </div>
         <div className="stat-card">
-          <div className="stat-number">{stats.trades.total}</div>
-          <div className="stat-label">전체 거래글</div>
+          <div className="stat-number">{stats.exchanges?.total || 0}</div>
+          <div className="stat-label">전체 교환글</div>
         </div>
         <div className="stat-card stat-selling">
-          <div className="stat-number">{stats.trades.selling}</div>
-          <div className="stat-label">판매중</div>
+          <div className="stat-number">{stats.exchanges?.exchanging || 0}</div>
+          <div className="stat-label">교환중</div>
         </div>
         <div className="stat-card stat-sold">
-          <div className="stat-number">{stats.trades.sold}</div>
-          <div className="stat-label">판매완료</div>
+          <div className="stat-number">{stats.exchanges?.completed || 0}</div>
+          <div className="stat-label">교환완료</div>
         </div>
         <div className="stat-card stat-pending">
           <div className="stat-number">{stats.pendingReports}</div>
