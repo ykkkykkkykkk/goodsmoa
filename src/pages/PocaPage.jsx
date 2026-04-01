@@ -75,36 +75,44 @@ export default function PocaPage() {
   const handleCardFile = async (idx, e) => {
     const f = e.target.files[0]
     if (!f) return
-    const next = [...formCards]
-    next[idx] = { ...next[idx], file: f, preview: URL.createObjectURL(f), analyzing: true }
-    setFormCards([...next])
+    const preview = URL.createObjectURL(f)
+
+    setFormCards(prev => {
+      const next = [...prev]
+      next[idx] = { ...next[idx], file: f, preview, analyzing: true, analyzed: false }
+      return next
+    })
 
     try {
       const res = await analyzePocaImage(f)
       if (res.ok && res.data) {
         const d = res.data
-        const updated = [...formCards]
-        updated[idx] = {
-          ...updated[idx],
-          file: f,
-          preview: URL.createObjectURL(f),
-          artist: d.artist || updated[idx].artist,
-          album: d.album || updated[idx].album,
-          version: d.version || updated[idx].version,
-          rarity: d.rarity || updated[idx].rarity,
-          analyzing: false,
-          analyzed: true,
-        }
-        setFormCards(updated)
+        setFormCards(prev => {
+          const next = [...prev]
+          next[idx] = {
+            ...next[idx],
+            artist: d.artist || next[idx].artist,
+            album: d.album || next[idx].album,
+            version: d.version || next[idx].version,
+            rarity: d.rarity || next[idx].rarity,
+            analyzing: false,
+            analyzed: true,
+          }
+          return next
+        })
       } else {
-        const updated = [...formCards]
-        updated[idx] = { ...updated[idx], analyzing: false }
-        setFormCards(updated)
+        setFormCards(prev => {
+          const next = [...prev]
+          next[idx] = { ...next[idx], analyzing: false }
+          return next
+        })
       }
     } catch {
-      const updated = [...formCards]
-      updated[idx] = { ...updated[idx], analyzing: false }
-      setFormCards(updated)
+      setFormCards(prev => {
+        const next = [...prev]
+        next[idx] = { ...next[idx], analyzing: false }
+        return next
+      })
     }
   }
 
