@@ -261,6 +261,16 @@ export async function getPocaCards(artist, album, rarity, q, page = 1, limit = 2
   return res
 }
 
+export function analyzePocaImage(file) {
+  const fd = new FormData()
+  fd.append('image', file)
+  return fetch(`${BASE}/poca/analyze`, {
+    method: 'POST',
+    headers: userAuthHeaders(),
+    body: fd,
+  }).then(r => r.json())
+}
+
 export function createPocaPost(formData) {
   return fetch(`${BASE}/poca`, {
     method: 'POST',

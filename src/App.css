@@ -1019,6 +1019,29 @@ input, select, textarea { font: inherit; }
 }
 .poca-add-card-btn:hover { border-color: var(--primary); color: var(--primary); }
 
+/* AI 분석 배지 & 자동입력 표시 */
+.poca-card-form-header-right { display: flex; align-items: center; gap: 8px; }
+.ai-badge {
+  font-size: 0.7rem; font-weight: 700; padding: 3px 8px;
+  border-radius: 10px; white-space: nowrap;
+}
+.ai-badge.analyzing {
+  background: #fef3c7; color: #d97706;
+  animation: aiBlink 1s ease-in-out infinite;
+}
+.ai-badge.analyzed {
+  background: #d1fae5; color: #059669;
+}
+@keyframes aiBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.poca-card-form-fields input.ai-filled,
+.poca-card-form-fields select.ai-filled {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
 /* 상세 모달 */
 .poca-detail-modal { width: min(560px, 95vw); max-height: 85vh; max-height: 85dvh; overflow-y: auto; }
 .poca-detail-top { display: flex; gap: clamp(12px, 3vw, 20px); margin-bottom: 16px; }

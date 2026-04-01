@@ -8,6 +8,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.81.0",
     "@libsql/client": "^0.14.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.6.2",
@@ -17,6 +18,8 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.1",
+    "formdata-node": "^6.0.3",
+    "formdata-polyfill": "^4.0.10",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",

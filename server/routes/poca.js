@@ -1,5 +1,6 @@
 const express = require('express');
 const multer = require('multer');
+const Anthropic = require('@anthropic-ai/sdk');
 const router = express.Router();
 const { getDB } = require('../db');
 const logger = require('../logger');
@@ -80,6 +81,75 @@ router.get('/', async (req, res) => {
   } catch (err) {
     logger.error(err.message, { stack: err.stack });
     res.status(500).json({ ok: false, message: '조회 실패' });
+  }
+});
+
+// ── 포카 이미지 AI 분석 (Claude Vision) ──
+router.post('/analyze', optionalAuth, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ ok: false, message: '로그인이 필요합니다' });
+    if (!req.file) return res.status(400).json({ ok: false, message: '이미지를 업로드하세요' });
+
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return res.json({ ok: true, data: { artist: '', member: '', album: '', version: '', rarity: 1 }, message: 'AI 분석 미설정' });
+    }
+
+    const client = new Anthropic({ apiKey });
+    const base64 = req.file.buffer.toString('base64');
+    const mediaType = req.file.mimetype || 'image/jpeg';
+
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 300,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: mediaType, data: base64 },
+          },
+          {
+            type: 'text',
+            text: `이 K-pop 포토카드 이미지를 분석해주세요. 다음 JSON 형식으로만 응답하세요. 확신이 없는 필드는 빈 문자열로 남겨주세요.
+
+{
+  "artist": "그룹명 (예: 뉴진스, 에스파, 방탄소년단)",
+  "member": "멤버 이름",
+  "album": "앨범명",
+  "version": "버전명 (예: Sweet Ver., 럭키드로우, 특전)",
+  "rarity": 3
+}
+
+rarity는 1~5 사이의 숫자로, 카드의 희귀도를 추정해주세요:
+1=N(일반), 2=R(레어), 3=SR(슈퍼레어), 4=SSR(스페셜), 5=UR(울트라레어)
+럭키드로우/팬사인회 특전 등은 4~5, 일반 앨범 포카는 2~3으로 추정하세요.
+
+JSON만 응답하세요. 다른 텍스트는 포함하지 마세요.`,
+          },
+        ],
+      }],
+    });
+
+    const text = response.content[0].text.trim();
+    // JSON 파싱 (코드블록으로 감싸져 있을 수 있음)
+    const jsonStr = text.replace(/^```json?\s*/, '').replace(/\s*```$/, '').trim();
+    const parsed = JSON.parse(jsonStr);
+
+    res.json({
+      ok: true,
+      data: {
+        artist: parsed.artist || '',
+        member: parsed.member || '',
+        album: parsed.album || '',
+        version: parsed.version || '',
+        rarity: Math.min(5, Math.max(1, parseInt(parsed.rarity) || 3)),
+      },
+    });
+  } catch (err) {
+    logger.error('포카 AI 분석 실패: ' + err.message, { stack: err.stack });
+    // 분석 실패해도 빈 데이터 반환 (업로드 플로우 중단 방지)
+    res.json({ ok: true, data: { artist: '', member: '', album: '', version: '', rarity: 3 }, message: '분석 실패' });
   }
 });
 

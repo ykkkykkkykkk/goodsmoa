@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react'
-import { getIdols, getPocaCards, createPocaPost, getPocaCardDetail, addPocaComment, togglePocaReaction, getPocaProfile, deletePocaCard, signup, login, getUserToken, setUserToken, clearUserToken, setUserInfo } from '../api'
+import { getIdols, getPocaCards, createPocaPost, analyzePocaImage, getPocaCardDetail, addPocaComment, togglePocaReaction, getPocaProfile, deletePocaCard, signup, login, getUserToken, setUserToken, clearUserToken, setUserInfo } from '../api'
 import { UserContext } from '../App'
 
 export default function PocaPage() {
@@ -72,11 +72,40 @@ export default function PocaPage() {
     setFormCards(next)
   }
 
-  const handleCardFile = (idx, e) => {
+  const handleCardFile = async (idx, e) => {
     const f = e.target.files[0]
+    if (!f) return
     const next = [...formCards]
-    next[idx] = { ...next[idx], file: f, preview: f ? URL.createObjectURL(f) : null }
-    setFormCards(next)
+    next[idx] = { ...next[idx], file: f, preview: URL.createObjectURL(f), analyzing: true }
+    setFormCards([...next])
+
+    try {
+      const res = await analyzePocaImage(f)
+      if (res.ok && res.data) {
+        const d = res.data
+        const updated = [...formCards]
+        updated[idx] = {
+          ...updated[idx],
+          file: f,
+          preview: URL.createObjectURL(f),
+          artist: d.artist || updated[idx].artist,
+          album: d.album || updated[idx].album,
+          version: d.version || updated[idx].version,
+          rarity: d.rarity || updated[idx].rarity,
+          analyzing: false,
+          analyzed: true,
+        }
+        setFormCards(updated)
+      } else {
+        const updated = [...formCards]
+        updated[idx] = { ...updated[idx], analyzing: false }
+        setFormCards(updated)
+      }
+    } catch {
+      const updated = [...formCards]
+      updated[idx] = { ...updated[idx], analyzing: false }
+      setFormCards(updated)
+    }
   }
 
   const addCardSlot = () => {
@@ -235,14 +264,22 @@ export default function PocaPage() {
               <div key={idx} className="poca-card-form-row">
                 <div className="poca-card-form-header">
                   <span className="poca-card-form-num">카드 {idx + 1}</span>
-                  {formCards.length > 1 && <button type="button" className="del-btn" onClick={() => removeCardSlot(idx)}>제거</button>}
+                  <div className="poca-card-form-header-right">
+                    {c.analyzing && <span className="ai-badge analyzing">AI 분석 중...</span>}
+                    {c.analyzed && !c.analyzing && <span className="ai-badge analyzed">AI 자동입력</span>}
+                    {formCards.length > 1 && <button type="button" className="del-btn" onClick={() => removeCardSlot(idx)}>제거</button>}
+                  </div>
                 </div>
                 <div className="poca-card-form-fields">
                   <input type="file" accept="image/*" onChange={e => handleCardFile(idx, e)} required={!c.file} />
-                  <input placeholder="아티스트" value={c.artist} onChange={e => updateCardForm(idx, 'artist', e.target.value)} />
-                  <input placeholder="앨범" value={c.album} onChange={e => updateCardForm(idx, 'album', e.target.value)} />
-                  <input placeholder="버전" value={c.version} onChange={e => updateCardForm(idx, 'version', e.target.value)} />
-                  <select value={c.rarity} onChange={e => updateCardForm(idx, 'rarity', parseInt(e.target.value))}>
+                  <input placeholder="아티스트" value={c.artist} onChange={e => updateCardForm(idx, 'artist', e.target.value)}
+                    className={c.analyzed && c.artist ? 'ai-filled' : ''} />
+                  <input placeholder="앨범" value={c.album} onChange={e => updateCardForm(idx, 'album', e.target.value)}
+                    className={c.analyzed && c.album ? 'ai-filled' : ''} />
+                  <input placeholder="버전" value={c.version} onChange={e => updateCardForm(idx, 'version', e.target.value)}
+                    className={c.analyzed && c.version ? 'ai-filled' : ''} />
+                  <select value={c.rarity} onChange={e => updateCardForm(idx, 'rarity', parseInt(e.target.value))}
+                    className={c.analyzed ? 'ai-filled' : ''}>
                     <option value={1}>★ N</option>
                     <option value={2}>★★ R</option>
                     <option value={3}>★★★ SR</option>
