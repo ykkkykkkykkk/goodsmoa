@@ -206,6 +206,68 @@ async function initDB() {
     }
   }
 
+  // 포카도감 예시 데이터 삽입
+  const pocaCount = await db.get('SELECT COUNT(*) as cnt FROM poca_cards');
+  if (pocaCount.cnt === 0) {
+    // 시드 유저 생성 (없으면)
+    const seedHash = '$2b$10$cgY5j8.aJZga.VDit7x31OYkVmem6vSCQwcopt.x.bl9Ye1OUHQdm'; // test1234
+    const seedUsers = [
+      ['seed_poca1', seedHash, '포카러버'],
+      ['seed_poca2', seedHash, '덕후99'],
+      ['seed_poca3', seedHash, '카드마스터'],
+    ];
+    const userIds = [];
+    for (const [username, pw, nick] of seedUsers) {
+      const existing = await db.get('SELECT id FROM users WHERE username = ?', [username]);
+      if (existing) {
+        userIds.push(existing.id);
+      } else {
+        await db.run('INSERT INTO users (username, password, nickname) VALUES (?, ?, ?)', [username, pw, nick]);
+        const row = await db.get('SELECT id FROM users WHERE username = ?', [username]);
+        userIds.push(row.id);
+      }
+    }
+
+    const posts = [
+      { uid: 0, title: '뉴진스 How Sweet 포카 컬렉션', cards: [
+        ['https://picsum.photos/seed/nj-hs1/800/1000', 'https://picsum.photos/seed/nj-hs1/400/500', '뉴진스', 'How Sweet', 'Sweet Ver.', 5],
+        ['https://picsum.photos/seed/nj-hs2/800/1000', 'https://picsum.photos/seed/nj-hs2/400/500', '뉴진스', 'How Sweet', 'Bitter Ver.', 4],
+      ]},
+      { uid: 1, title: '에스파 Supernova 앨범 포카', cards: [
+        ['https://picsum.photos/seed/aespa1/800/1000', 'https://picsum.photos/seed/aespa1/400/500', '에스파', 'Armageddon', 'Supernova Ver.', 5],
+        ['https://picsum.photos/seed/aespa2/800/1000', 'https://picsum.photos/seed/aespa2/400/500', '에스파', 'Armageddon', 'Hallucination Ver.', 3],
+        ['https://picsum.photos/seed/aespa3/800/1000', 'https://picsum.photos/seed/aespa3/400/500', '에스파', 'Armageddon', 'Warn Ver.', 4],
+      ]},
+      { uid: 2, title: '르세라핌 EASY 럭키드로우', cards: [
+        ['https://picsum.photos/seed/lsf1/800/1000', 'https://picsum.photos/seed/lsf1/400/500', '르세라핌', 'EASY', '럭키드로우', 5],
+      ]},
+      { uid: 0, title: '아이브 IVE SWITCH 포카 모음', cards: [
+        ['https://picsum.photos/seed/ive1/800/1000', 'https://picsum.photos/seed/ive1/400/500', '아이브', 'IVE SWITCH', 'On Ver.', 4],
+        ['https://picsum.photos/seed/ive2/800/1000', 'https://picsum.photos/seed/ive2/400/500', '아이브', 'IVE SWITCH', 'Off Ver.', 3],
+      ]},
+      { uid: 1, title: '스트레이키즈 특전 포카', cards: [
+        ['https://picsum.photos/seed/skz1/800/1000', 'https://picsum.photos/seed/skz1/400/500', '스트레이키즈', 'ATE', 'CHOEAEDOL 특전', 5],
+        ['https://picsum.photos/seed/skz2/800/1000', 'https://picsum.photos/seed/skz2/400/500', '스트레이키즈', 'ATE', 'Jewel Ver.', 2],
+      ]},
+      { uid: 2, title: '세븐틴 FOLLOW AGAIN 포카', cards: [
+        ['https://picsum.photos/seed/svt1/800/1000', 'https://picsum.photos/seed/svt1/400/500', '세븐틴', 'FOLLOW AGAIN', 'Random Ver.', 3],
+        ['https://picsum.photos/seed/svt2/800/1000', 'https://picsum.photos/seed/svt2/400/500', '세븐틴', 'FOLLOW AGAIN', 'Together Ver.', 4],
+        ['https://picsum.photos/seed/svt3/800/1000', 'https://picsum.photos/seed/svt3/400/500', '세븐틴', 'FOLLOW AGAIN', 'Carat Ver.', 1],
+      ]},
+    ];
+
+    for (const post of posts) {
+      await db.run('INSERT INTO poca_posts (user_id, title) VALUES (?, ?)', [userIds[post.uid], post.title]);
+      const p = await db.get('SELECT id FROM poca_posts WHERE user_id = ? ORDER BY id DESC LIMIT 1', [userIds[post.uid]]);
+      for (const [img, thumb, artist, album, version, rarity] of post.cards) {
+        await db.run(
+          'INSERT INTO poca_cards (post_id, image_url, thumbnail_url, artist, album, version, rarity) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [p.id, img, thumb, artist, album, version, rarity]
+        );
+      }
+    }
+  }
+
   return db;
 }
 
